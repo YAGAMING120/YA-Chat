@@ -75,12 +75,16 @@ export const sendChatCompletion = async (payload, onStream, signal) => {
                     
                     try {
                         const data = JSON.parse(dataStr);
-                        const content = data.choices[0]?.delta?.content || '';
+                        const delta = data.choices[0]?.delta || {};
+                        const reasoning = delta.reasoning || '';
+                        const content = delta.content || '';
+
+                        if (reasoning) {
+                            if (onStream) onStream(completeResponse, null, reasoning, 'reasoning');
+                        }
                         if (content) {
                             completeResponse += content;
-                            if (onStream) {
-                                onStream(completeResponse, data.usage || null);
-                            }
+                            if (onStream) onStream(completeResponse, data.usage || null, null, 'content');
                         }
                     } catch (err) {
                         console.warn("Failed to parse SSE JSON:", dataStr);

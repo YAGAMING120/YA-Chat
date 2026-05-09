@@ -294,12 +294,16 @@ const triggerCompletion = async () => {
     const aiDOM = buildMessageDOM('assistant', '');
     container.appendChild(aiDOM);
     scrollToBottom();
-    
+
+    // Show loading skeleton while waiting for first token
+    const contentEl = aiDOM.querySelector('.chat__content');
+    contentEl.innerHTML = `<div class="thinking-indicator"><span></span><span></span><span></span></div>`;
+
     const btnSend = document.getElementById('btn-send');
     const sendIconRaw = btnSend ? btnSend.innerHTML : '';
-    
+
     currentAbortController = new AbortController();
-    
+
     if (btnSend) {
         btnSend.innerHTML = '<div style="width:12px;height:12px;background:white;border-radius:2px;"></div>';
         currentStopHandler = () => {
@@ -308,10 +312,33 @@ const triggerCompletion = async () => {
         btnSend.removeEventListener('click', handleSend);
         btnSend.addEventListener('click', currentStopHandler);
     }
-    
+
     let streamedContent = '';
+    let reasoningContent = '';
     let lastUsage = null;
-    
+    let hasStartedContent = false;
+
+    /** Renders the thinking block + streamed content into the bubble */
+    const renderBubble = () => {
+        let html = '';
+        if (reasoningContent) {
+            html += `<details class="thinking-block" ${hasStartedContent ? '' : 'open'}>
+                <summary class="thinking-block__label">
+                    <svg class="icon icon--sm" style="display:inline;vertical-align:middle;margin-right:4px;"><use href="#icon-refresh"></use></svg>
+                    Thinking…
+                </summary>
+                <div class="thinking-block__content">${escapeHTML(reasoningContent).replace(/\n/g, '<br/>')}</div>
+            </details>`;
+        }
+        if (streamedContent) {
+            html += renderMarkdown(streamedContent);
+        } else if (!reasoningContent) {
+            html += `<div class="thinking-indicator"><span></span><span></span><span></span></div>`;
+        }
+        contentEl.innerHTML = html + (hasStartedContent && streamedContent ? '<span class="cursor-blink"></span>' : '');
+        scrollToBottom();
+    };
+
     try {
         const settings = getSettings();
         const payload = {
@@ -322,38 +349,55 @@ const triggerCompletion = async () => {
             top_p: settings.topP,
             stream: true
         };
-        
+
         if (settings.systemPrompt) {
             payload.messages.unshift({ role: 'system', content: settings.systemPrompt });
         }
-        
-        const response = await sendChatCompletion(payload, (chunk, usage) => {
-            streamedContent = chunk;
+
+        const response = await sendChatCompletion(payload, (chunk, usage, reasoningChunk, type) => {
+            if (type === 'reasoning') {
+                reasoningContent += reasoningChunk;
+            } else {
+                streamedContent = chunk;
+                hasStartedContent = true;
+            }
             if (usage) lastUsage = usage;
-            aiDOM.querySelector('.chat__content').innerHTML = renderMarkdown(streamedContent) + '<span class="cursor-blink"></span>';
-            scrollToBottom();
+            renderBubble();
         }, currentAbortController.signal);
-        
+
         if (response) streamedContent = response;
-        
+
         currentSession.messages.push({ role: 'assistant', content: streamedContent });
         currentSession.timestamp = Date.now();
         saveSession(currentSession);
-        
-        aiDOM.querySelector('.chat__content').innerHTML = renderMarkdown(streamedContent);
+
+        // Final render — collapse thinking block, remove cursor
+        let finalHtml = '';
+        if (reasoningContent) {
+            finalHtml += `<details class="thinking-block">
+                <summary class="thinking-block__label">
+                    <svg class="icon icon--sm" style="display:inline;vertical-align:middle;margin-right:4px;"><use href="#icon-refresh"></use></svg>
+                    Thought for a moment
+                </summary>
+                <div class="thinking-block__content">${escapeHTML(reasoningContent).replace(/\n/g, '<br/>')}</div>
+            </details>`;
+        }
+        finalHtml += renderMarkdown(streamedContent);
+        contentEl.innerHTML = finalHtml;
+
         if (lastUsage) {
             aiDOM.querySelector('.chat__message-meta').textContent = `${lastUsage.total_tokens || '?'} tokens`;
         }
-        
+
     } catch (e) {
         if (e.name === 'AbortError') {
-             aiDOM.querySelector('.chat__content').innerHTML = renderMarkdown(streamedContent) + ' <span style="color:var(--text-dim);font-size:0.75rem;">[Stopped]</span>';
+             contentEl.innerHTML = renderMarkdown(streamedContent) + ' <span style="color:var(--text-dim);font-size:0.75rem;">[Stopped]</span>';
              if (streamedContent) {
                  currentSession.messages.push({ role: 'assistant', content: streamedContent + ' [Stopped]' });
                  saveSession(currentSession);
              }
         } else {
-             aiDOM.querySelector('.chat__content').innerHTML = `<p style="color:var(--bg-danger)">Error: ${escapeHTML(e.message)}</p>`;
+             contentEl.innerHTML = `<p style="color:var(--bg-danger)">Error: ${escapeHTML(e.message)}</p>`;
         }
     } finally {
         currentAbortController = null;
@@ -363,14 +407,25 @@ const triggerCompletion = async () => {
             btnSend.innerHTML = sendIconRaw;
             btnSend.disabled = false;
         }
-        
+
         const newMsgDom = buildMessageDOM('assistant', streamedContent);
         const metaText = aiDOM.querySelector('.chat__message-meta').textContent;
         aiDOM.innerHTML = newMsgDom.innerHTML;
+        // Restore thinking block into final DOM
+        if (reasoningContent) {
+            const thinkingBlock = document.createElement('details');
+            thinkingBlock.className = 'thinking-block';
+            thinkingBlock.innerHTML = `<summary class="thinking-block__label">
+                    <svg class="icon icon--sm" style="display:inline;vertical-align:middle;margin-right:4px;"><use href="#icon-refresh"></use></svg>
+                    Thought for a moment
+                </summary>
+                <div class="thinking-block__content">${escapeHTML(reasoningContent).replace(/\n/g, '<br/>')}</div>`;
+            aiDOM.querySelector('.chat__content').prepend(thinkingBlock);
+        }
         if (metaText) {
             aiDOM.querySelector('.chat__message-meta').textContent = metaText;
         }
-        
+
         scrollToBottom();
     }
 };
