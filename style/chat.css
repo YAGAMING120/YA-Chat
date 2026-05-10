@@ -792,3 +792,13 @@
     font-size: 0.8rem;
     color: var(--text-muted);
 }
+
+/* ── Live stream text (plain text during streaming, replaced by markdown on finish) ── */
+.live-stream-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.7;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    font-family: var(--font-sans);
+}

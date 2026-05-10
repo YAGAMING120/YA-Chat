@@ -489,26 +489,61 @@ const triggerCompletion = async () => {
     let reasoningContent = '';
     let lastUsage = null;
     let hasStartedContent = false;
+    let rafPending = false;
 
-    /** Renders the thinking block + streamed content into the bubble */
-    const renderBubble = () => {
-        let html = '';
+    // Dedicated elements for live update — no full re-render
+    const reasoningEl = document.createElement('details');
+    reasoningEl.className = 'thinking-block';
+    reasoningEl.style.display = 'none';
+    reasoningEl.innerHTML = `<summary class="thinking-block__label">
+        <svg class="icon icon--sm" style="display:inline;vertical-align:middle;margin-right:4px;"><use href="#icon-refresh"></use></svg>
+        Thinking…
+    </summary><div class="thinking-block__content"></div>`;
+    const reasoningTextEl = reasoningEl.querySelector('.thinking-block__content');
+
+    const liveTextEl = document.createElement('div');
+    liveTextEl.className = 'live-stream-text';
+
+    const cursorEl = document.createElement('span');
+    cursorEl.className = 'cursor-blink';
+
+    contentEl.innerHTML = '';
+    contentEl.appendChild(reasoningEl);
+    contentEl.appendChild(liveTextEl);
+    contentEl.appendChild(cursorEl);
+
+    // Throttled DOM flush via requestAnimationFrame — max 1 update per frame (~60fps)
+    const flushDOM = () => {
+        rafPending = false;
+
         if (reasoningContent) {
-            html += `<details class="thinking-block" ${hasStartedContent ? '' : 'open'}>
-                <summary class="thinking-block__label">
-                    <svg class="icon icon--sm" style="display:inline;vertical-align:middle;margin-right:4px;"><use href="#icon-refresh"></use></svg>
-                    Thinking…
-                </summary>
-                <div class="thinking-block__content">${escapeHTML(reasoningContent).replace(/\n/g, '<br/>')}</div>
-            </details>`;
+            reasoningEl.style.display = '';
+            reasoningEl.open = !hasStartedContent;
+            reasoningTextEl.textContent = reasoningContent; // textContent = no HTML parsing cost
         }
-        if (streamedContent) {
-            html += renderMarkdown(streamedContent);
+
+        if (hasStartedContent) {
+            // Plain text during stream — no markdown parsing cost
+            liveTextEl.textContent = streamedContent;
+            cursorEl.style.display = '';
         } else if (!reasoningContent) {
-            html += `<div class="thinking-indicator"><span></span><span></span><span></span></div>`;
+            liveTextEl.innerHTML = '<div class="thinking-indicator"><span></span><span></span><span></span></div>';
         }
-        contentEl.innerHTML = html + (hasStartedContent && streamedContent ? '<span class="cursor-blink"></span>' : '');
-        scrollToBottom();
+
+        // Smart scroll — only scroll if user is near bottom (within 100px)
+        const container = document.getElementById('chat-messages');
+        if (container) {
+            const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+            if (distFromBottom < 100) container.scrollTop = container.scrollHeight;
+        }
+    };
+
+    /** Schedules one DOM flush per animation frame — called on every token */
+    const scheduleFlush = () => {
+        if (!rafPending) {
+            rafPending = true;
+            requestAnimationFrame(flushDOM);
+        }
     };
 
     try {
@@ -534,7 +569,7 @@ const triggerCompletion = async () => {
                 hasStartedContent = true;
             }
             if (usage) lastUsage = usage;
-            renderBubble();
+            scheduleFlush(); // throttled — not every token
         }, currentAbortController.signal);
 
         if (response) streamedContent = response;
@@ -543,7 +578,11 @@ const triggerCompletion = async () => {
         currentSession.timestamp = Date.now();
         saveSession(currentSession);
 
-        // Final render — collapse thinking block, remove cursor
+        // ── Final render: NOW run markdown once ──────────────────────────
+        cursorEl.remove();
+        liveTextEl.remove();
+        reasoningEl.remove();
+
         let finalHtml = '';
         if (reasoningContent) {
             finalHtml += `<details class="thinking-block">
@@ -554,7 +593,7 @@ const triggerCompletion = async () => {
                 <div class="thinking-block__content">${escapeHTML(reasoningContent).replace(/\n/g, '<br/>')}</div>
             </details>`;
         }
-        finalHtml += renderMarkdown(streamedContent);
+        finalHtml += renderMarkdown(streamedContent); // ← only called ONCE
         contentEl.innerHTML = finalHtml;
 
         if (lastUsage) {
@@ -562,14 +601,17 @@ const triggerCompletion = async () => {
         }
 
     } catch (e) {
+        cursorEl.remove();
+        liveTextEl.remove();
+        reasoningEl.remove();
         if (e.name === 'AbortError') {
-             contentEl.innerHTML = renderMarkdown(streamedContent) + ' <span style="color:var(--text-dim);font-size:0.75rem;">[Stopped]</span>';
-             if (streamedContent) {
-                 currentSession.messages.push({ role: 'assistant', content: streamedContent + ' [Stopped]' });
-                 saveSession(currentSession);
-             }
+            contentEl.innerHTML = renderMarkdown(streamedContent) + ' <span style="color:var(--text-dim);font-size:0.75rem;">[Stopped]</span>';
+            if (streamedContent) {
+                currentSession.messages.push({ role: 'assistant', content: streamedContent + ' [Stopped]' });
+                saveSession(currentSession);
+            }
         } else {
-             contentEl.innerHTML = `<p style="color:var(--bg-danger)">Error: ${escapeHTML(e.message)}</p>`;
+            contentEl.innerHTML = `<p style="color:var(--bg-danger)">Error: ${escapeHTML(e.message)}</p>`;
         }
     } finally {
         currentAbortController = null;
