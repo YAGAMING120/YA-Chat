@@ -37,14 +37,21 @@ if (window.marked) {
         try {
             highlighted = window.marked.defaults.highlight(text, langStr);
         } catch (e) {}
-        
+
         return `
     <div class="code-block-wrapper">
         <div class="code-block-header">
             <span class="code-lang">${escapeHTML(langStr)}</span>
-            <button class="btn-copy-code" data-code="${encodeURIComponent(text)}">
-                Copy
-            </button>
+            <div class="code-block-actions">
+                <button class="btn-open-artifact" data-code="${encodeURIComponent(text)}" data-lang="${escapeHTML(langStr)}" title="Open as file in panel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Open as File
+                </button>
+                <button class="btn-copy-code" data-code="${encodeURIComponent(text)}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    Copy
+                </button>
+            </div>
         </div>
         <pre><code class="hljs language-${escapeHTML(langStr)}">${highlighted}</code></pre>
     </div>`;

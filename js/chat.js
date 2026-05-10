@@ -7,6 +7,7 @@ import { getSelectedModelId } from './models.js';
 import { sendChatCompletion } from './api.js';
 import { buildMessageDOM, escapeHTML, renderMarkdown } from './renderer.js';
 import { closeSidebarMobile } from './ui.js';
+import { openArtifact, initArtifactPanel } from './artifact.js';
 
 let currentSession = null;
 let pendingAttachments = []; // [{name, type, dataUrl, base64, mimeType}]
@@ -55,6 +56,8 @@ const renderFilePreviewStrip = () => {
 
 export const initChat = () => {
     console.log('Chat initialized');
+
+    initArtifactPanel();
     
     document.getElementById('btn-new-chat')?.addEventListener('click', createNewChat);
     
@@ -95,6 +98,13 @@ export const initChat = () => {
     
     // Global event delegation
     document.addEventListener('click', (e) => {
+        const openArtifactBtn = e.target.closest('.btn-open-artifact');
+        if (openArtifactBtn) {
+            const code = decodeURIComponent(openArtifactBtn.dataset.code || '');
+            const lang = openArtifactBtn.dataset.lang || 'text';
+            openArtifact(code, lang);
+        }
+
         const copyCodeBtn = e.target.closest('.btn-copy-code');
         if (copyCodeBtn) {
             const rawCode = copyCodeBtn.dataset.code;

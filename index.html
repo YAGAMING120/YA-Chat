@@ -24,7 +24,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 </head>
 <body>
-    <div id="app" class="app-container">
+    <div id="app" class="app-container" id="app">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar__top">
                 <button class="btn-new-chat" id="btn-new-chat">
@@ -109,6 +109,27 @@
                <div class="glow glow--blue"></div>
             </div>
         </main>
+
+        <!-- Artifact Panel -->
+        <aside class="artifact-panel" id="artifact-panel">
+            <div class="artifact-panel__header">
+                <div class="artifact-panel__tabs" id="artifact-tabs"></div>
+                <div class="artifact-panel__actions">
+                    <button class="artifact-btn" id="artifact-btn-download" title="Download file">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Download
+                    </button>
+                    <button class="artifact-btn artifact-btn--icon" id="artifact-btn-copy" title="Copy code">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    </button>
+                    <button class="artifact-btn artifact-btn--icon" id="artifact-btn-close" title="Close panel">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="artifact-panel__filename" id="artifact-filename">untitled</div>
+            <div class="artifact-panel__body" id="artifact-body"></div>
+        </aside>
         
         <!-- Modals -->
         <div class="modal-overlay" id="modal-settings" style="display: none;">
