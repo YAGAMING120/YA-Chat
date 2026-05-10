@@ -182,3 +182,14 @@
         opacity: 1;
     }
 }
+
+/* ── YA Chat logo in sidebar bottom ─────────────────────────── */
+.user-profile__avatar--logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-medium);
+    background: transparent;
+    flex-shrink: 0;
+}

@@ -9,6 +9,49 @@ import { buildMessageDOM, escapeHTML, renderMarkdown } from './renderer.js';
 import { closeSidebarMobile } from './ui.js';
 
 let currentSession = null;
+let pendingAttachments = []; // [{name, type, dataUrl, base64, mimeType}]
+
+/** Reads a File into base64 and returns an attachment object */
+const readFileAsAttachment = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        const base64 = dataUrl.split(',')[1];
+        resolve({
+            name: file.name,
+            type: file.type.startsWith('image/') ? 'image' : 'pdf',
+            mimeType: file.type,
+            dataUrl,
+            base64
+        });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+});
+
+/** Renders the pending attachment strip above the input */
+const renderFilePreviewStrip = () => {
+    const strip = document.getElementById('file-preview-strip');
+    if (!strip) return;
+    strip.innerHTML = '';
+    if (pendingAttachments.length === 0) {
+        strip.style.display = 'none';
+        return;
+    }
+    strip.style.display = 'flex';
+    pendingAttachments.forEach((att, idx) => {
+        const chip = document.createElement('div');
+        chip.className = 'file-chip';
+        chip.innerHTML = att.type === 'image'
+            ? `<img src="${att.dataUrl}" class="file-chip__thumb" alt="${escapeHTML(att.name)}"><span class="file-chip__name">${escapeHTML(att.name)}</span><button class="file-chip__remove" data-idx="${idx}">✕</button>`
+            : `<span class="file-chip__icon">📄</span><span class="file-chip__name">${escapeHTML(att.name)}</span><button class="file-chip__remove" data-idx="${idx}">✕</button>`;
+        chip.querySelector('.file-chip__remove').addEventListener('click', () => {
+            pendingAttachments.splice(idx, 1);
+            renderFilePreviewStrip();
+        });
+        strip.appendChild(chip);
+    });
+};
 
 export const initChat = () => {
     console.log('Chat initialized');
@@ -27,6 +70,20 @@ export const initChat = () => {
         }
     });
 
+    // File attach button
+    const btnAttach = document.getElementById('btn-attach-file');
+    const fileInput = document.getElementById('file-input');
+    btnAttach?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        for (const file of files) {
+            const att = await readFileAsAttachment(file);
+            pendingAttachments.push(att);
+        }
+        renderFilePreviewStrip();
+        fileInput.value = ''; // reset so same file can be re-added
+    });
+
     const list = getSessionList();
     if (list.length > 0) {
         loadSessionUI(list[0].id);
@@ -36,7 +93,7 @@ export const initChat = () => {
     
     renderSidebarList();
     
-    // Global Event delegation for copy actions and prompts
+    // Global event delegation
     document.addEventListener('click', (e) => {
         const copyCodeBtn = e.target.closest('.btn-copy-code');
         if (copyCodeBtn) {
@@ -53,10 +110,29 @@ export const initChat = () => {
             const rawMsg = copyMsgBtn.dataset.msg;
             if (rawMsg) {
                 navigator.clipboard.writeText(decodeURIComponent(rawMsg));
-                const originalHtml = copyMsgBtn.innerHTML;
+                const orig = copyMsgBtn.innerHTML;
                 copyMsgBtn.innerHTML = 'Copied!';
-                setTimeout(() => copyMsgBtn.innerHTML = originalHtml, 2000);
+                setTimeout(() => copyMsgBtn.innerHTML = orig, 2000);
             }
+        }
+
+        // Copy user message
+        const copyUserBtn = e.target.closest('.btn-copy-user-msg');
+        if (copyUserBtn) {
+            const bubble = copyUserBtn.closest('.chat__bubble--user');
+            const textEl = bubble?.querySelector('.user-msg-text');
+            if (textEl) {
+                navigator.clipboard.writeText(textEl.innerText);
+                copyUserBtn.style.color = 'var(--text-primary)';
+                setTimeout(() => copyUserBtn.style.color = '', 1500);
+            }
+        }
+
+        // Edit user message
+        const editUserBtn = e.target.closest('.btn-edit-user-msg');
+        if (editUserBtn) {
+            const msgDiv = editUserBtn.closest('.chat__message--user');
+            startEditUserMessage(msgDiv);
         }
         
         const promptCard = e.target.closest('.prompt-card');
@@ -70,13 +146,11 @@ export const initChat = () => {
         
         const regenBtn = e.target.closest('.btn-regenerate');
         if (regenBtn) {
-            const isLastAi = currentSession && currentSession.messages.length > 0 && currentSession.messages[currentSession.messages.length - 1].role === 'assistant';
+            const isLastAi = currentSession?.messages.length > 0 && currentSession.messages[currentSession.messages.length - 1].role === 'assistant';
             if (isLastAi) {
-                currentSession.messages.pop(); // Remove AI
+                currentSession.messages.pop();
                 const msgsDOM = document.getElementById('chat-messages');
                 msgsDOM.removeChild(msgsDOM.lastElementChild);
-                
-                // Resend based on last user request
                 triggerCompletion();
             }
         }
@@ -84,21 +158,16 @@ export const initChat = () => {
     
     document.getElementById('btn-export-chat')?.addEventListener('click', () => {
         if (!currentSession || currentSession.messages.length === 0) return;
-        
         let text = `# ${currentSession.title}\n\n`;
         currentSession.messages.forEach(m => {
             text += `### ${m.role === 'user' ? 'User' : 'Assistant'}\n${m.content}\n\n---\n\n`;
         });
-        
         const blob = new Blob([text], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentSession.title || 'chat'}.md`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        a.href = url; a.download = `${currentSession.title || 'chat'}.md`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
     });
 };
 
@@ -247,7 +316,14 @@ const renderChatMessages = () => {
     }
     
     currentSession.messages.forEach(msg => {
-        container.appendChild(buildMessageDOM(msg.role, msg.content));
+        // content can be string or array (multipart with images)
+        const textContent = Array.isArray(msg.content)
+            ? msg.content.filter(c => c.type === 'text').map(c => c.text).join(' ')
+            : msg.content;
+        const imageAttachments = Array.isArray(msg.content)
+            ? msg.content.filter(c => c.type === 'image_url').map(c => ({ type: 'image', name: 'image', dataUrl: c.image_url.url }))
+            : [];
+        container.appendChild(buildMessageDOM(msg.role, textContent, imageAttachments));
     });
     
     scrollToBottom();
@@ -263,29 +339,115 @@ const scrollToBottom = () => {
 let currentAbortController = null;
 let currentStopHandler = null;
 
+/**
+ * Turns a user message bubble into an inline edit textarea, then resends on confirm.
+ */
+const startEditUserMessage = (msgDiv) => {
+    const bubble = msgDiv.querySelector('.chat__bubble--user');
+    const textEl = bubble?.querySelector('.user-msg-text');
+    if (!textEl) return;
+
+    const originalText = textEl.innerText;
+    const msgIndex = Array.from(document.getElementById('chat-messages').children).indexOf(msgDiv);
+
+    // Replace bubble content with textarea
+    bubble.innerHTML = `
+        <textarea class="edit-msg-textarea">${escapeHTML(originalText)}</textarea>
+        <div class="edit-msg-actions">
+            <button class="btn-edit-save">Send</button>
+            <button class="btn-edit-cancel">Cancel</button>
+        </div>
+    `;
+
+    const textarea = bubble.querySelector('.edit-msg-textarea');
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+    bubble.querySelector('.btn-edit-cancel').addEventListener('click', () => {
+        // Restore original DOM
+        const container = document.getElementById('chat-messages');
+        renderChatMessages();
+    });
+
+    bubble.querySelector('.btn-edit-save').addEventListener('click', () => {
+        const newText = textarea.value.trim();
+        if (!newText) return;
+
+        // Trim session messages from this point forward
+        const userMsgCount = Array.from(document.getElementById('chat-messages').children)
+            .slice(0, msgIndex + 1).filter(el => el.classList.contains('chat__message--user')).length;
+
+        // Find the index in session messages (user messages only)
+        let userCount = 0;
+        let sessionIdx = -1;
+        for (let i = 0; i < currentSession.messages.length; i++) {
+            if (currentSession.messages[i].role === 'user') userCount++;
+            if (userCount === userMsgCount) { sessionIdx = i; break; }
+        }
+
+        if (sessionIdx !== -1) {
+            // Remove all messages from sessionIdx onwards and re-add the edited one
+            currentSession.messages = currentSession.messages.slice(0, sessionIdx);
+        }
+
+        // Push the edited message and save
+        currentSession.messages.push({ role: 'user', content: newText });
+        currentSession.timestamp = Date.now();
+        saveSession(currentSession);
+
+        // Re-render chat and trigger AI
+        renderChatMessages();
+        triggerCompletion();
+    });
+};
+
 const handleSend = async () => {
     const input = document.getElementById('chat-input');
     const content = input.value.trim();
-    if (!content) return;
-    
+    if (!content && pendingAttachments.length === 0) return;
+
     input.value = '';
-    
+
     if (currentSession.messages.length === 0) {
-        document.getElementById('chat-messages').innerHTML = ''; // clear empty state
+        document.getElementById('chat-messages').innerHTML = '';
     }
-    
-    currentSession.messages.push({ role: 'user', content });
+
+    const attachmentsSnapshot = [...pendingAttachments];
+    pendingAttachments = [];
+    renderFilePreviewStrip();
+
+    // Build API content — multipart if attachments, else plain string
+    let apiContent;
+    if (attachmentsSnapshot.length > 0) {
+        apiContent = [];
+        attachmentsSnapshot.forEach(att => {
+            if (att.type === 'image') {
+                apiContent.push({
+                    type: 'image_url',
+                    image_url: { url: att.dataUrl }
+                });
+            } else {
+                // PDF: send as text note (OpenRouter doesn't support PDF binary in all models)
+                apiContent.push({ type: 'text', text: `[Attached file: ${att.name}]` });
+            }
+        });
+        if (content) apiContent.push({ type: 'text', text: content });
+    } else {
+        apiContent = content;
+    }
+
+    currentSession.messages.push({ role: 'user', content: apiContent });
     if (!currentSession.title) {
-        currentSession.title = content.substring(0, 30);
+        currentSession.title = (content || attachmentsSnapshot[0]?.name || 'Chat').substring(0, 30);
     }
     currentSession.timestamp = Date.now();
     saveSession(currentSession);
-    
+
     const container = document.getElementById('chat-messages');
-    container.appendChild(buildMessageDOM('user', content));
+    container.appendChild(buildMessageDOM('user', content, attachmentsSnapshot));
     scrollToBottom();
-    renderSidebarList(); // re-render to update title
-    
+    renderSidebarList();
+
     triggerCompletion();
 };
 

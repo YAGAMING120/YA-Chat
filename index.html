@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MentorDev | OpenRouter Chat</title>
+    <title>YA Chat | AI Powered by OpenRouter</title>
+    <link rel="icon" type="image/png" href="assets/ya-chat-logo.png">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,9 +39,9 @@
 
             <div class="sidebar__bottom" id="btn-settings-open">
                 <div class="user-profile">
-                    <div class="user-profile__avatar">MD</div>
+                    <img src="assets/ya-chat-logo.png" class="user-profile__avatar user-profile__avatar--logo" alt="YA Chat">
                     <div class="user-profile__info">
-                        <div class="user-profile__name">MentorDev User</div>
+                        <div class="user-profile__name">YA Chat</div>
                         <div class="user-profile__status">API: Connected</div>
                     </div>
                     <svg class="icon"><use href="#icon-settings"></use></svg>
@@ -74,25 +75,31 @@
 
                 <div class="input-container">
                     <div class="input-wrapper">
+                        <!-- File preview strip (shown when files attached) -->
+                        <div class="file-preview-strip" id="file-preview-strip"></div>
                         <textarea 
                             id="chat-input"
                             class="chat-input"
-                            placeholder="Ask MentorDev anything..."
+                            placeholder="Ask YA Chat anything..."
                             rows="1"
                         ></textarea>
                         <div class="input-tools">
+                            <button class="btn-tool" id="btn-attach-file" title="Attach Image or PDF">
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                            </button>
+                            <input type="file" id="file-input" accept="image/*,.pdf" multiple style="display:none">
                             <button class="btn-tool" id="btn-system-prompt" title="System Prompt">
                                 <svg class="icon"><use href="#icon-settings"></use></svg>
                             </button>
                             <div class="divider-vertical"></div>
-                            <span class="shortcut-hint">Ctrl + Enter to send</span>
+                            <span class="shortcut-hint">Shift+Enter for newline</span>
                         </div>
                         <button class="btn-send" id="btn-send">
                             <svg class="icon"><use href="#icon-send"></use></svg>
                         </button>
                     </div>
                     <div class="app-footer">
-                        Mentoring with Precision via OpenRouter • v1.0.4
+                        YA Chat • Powered by OpenRouter • v2.0.0
                     </div>
                 </div>
             </div>

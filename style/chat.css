@@ -603,3 +603,192 @@
     white-space: pre-wrap;
     word-break: break-word;
 }
+
+/* ════════════════════════════════════════════════════════════
+   YA CHAT — New Feature Styles
+   ════════════════════════════════════════════════════════════ */
+
+/* ── AI Avatar Logo ──────────────────────────────────────────── */
+.chat__avatar--ai {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-medium);
+}
+.ai-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* ── User message action buttons ─────────────────────────────── */
+.chat__bubble--user {
+    position: relative;
+}
+.user-msg-actions {
+    display: flex;
+    gap: 4px;
+    position: absolute;
+    bottom: -28px;
+    right: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.chat__message--user:hover .user-msg-actions,
+.chat__message--user:focus-within .user-msg-actions {
+    opacity: 1;
+}
+/* Always show on mobile */
+@media (max-width: 768px) {
+    .user-msg-actions { opacity: 1; bottom: -32px; }
+}
+.btn-user-action {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 6px;
+    padding: 4px 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    transition: color 0.15s, background 0.15s;
+}
+.btn-user-action svg {
+    width: 13px;
+    height: 13px;
+    stroke: currentColor;
+}
+.btn-user-action:hover {
+    color: var(--text-primary);
+    background: var(--bg-surface-hover);
+}
+
+/* ── Inline edit textarea ────────────────────────────────────── */
+.edit-msg-textarea {
+    width: 100%;
+    min-height: 60px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border-focus);
+    border-radius: 8px;
+    padding: 0.625rem 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    resize: vertical;
+    outline: none;
+    line-height: 1.5;
+}
+.edit-msg-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    justify-content: flex-end;
+}
+.btn-edit-save {
+    background: var(--bg-button-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.35rem 0.875rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btn-edit-save:hover { background: var(--bg-button-primary-hover); }
+.btn-edit-cancel {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-medium);
+    border-radius: 6px;
+    padding: 0.35rem 0.875rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.btn-edit-cancel:hover { background: var(--bg-surface-hover); color: var(--text-main); }
+
+/* Extra bottom margin on user messages to make room for action buttons */
+.chat__message--user {
+    margin-bottom: 2rem;
+}
+
+/* ── File preview strip (above input) ────────────────────────── */
+.file-preview-strip {
+    display: none;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0 4px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 6px;
+}
+.file-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    padding: 4px 8px 4px 4px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    max-width: 180px;
+}
+.file-chip__thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+.file-chip__icon { font-size: 1rem; }
+.file-chip__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100px;
+    color: var(--text-main);
+}
+.file-chip__remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.file-chip__remove:hover { color: var(--bg-danger); }
+
+/* ── Message attachments (inside sent bubble) ────────────────── */
+.msg-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.msg-attachment-img {
+    max-width: 220px;
+    max-height: 180px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid var(--border-medium);
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.msg-attachment-img:hover { opacity: 0.85; }
+.msg-attachment-file {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
