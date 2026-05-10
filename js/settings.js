@@ -10,7 +10,8 @@ const DEFAULT_SETTINGS = {
     temperature: 0.7,
     topP: 1.0,
     maxTokens: 4096,
-    theme: 'system'
+    theme: 'system',
+    thinkingEnabled: false
 };
 
 let currentSettings = { ...DEFAULT_SETTINGS };
@@ -110,3 +111,7 @@ export const initSettings = () => {
 
 export const getApiKey = () => currentSettings.apiKey;
 export const getSettings = () => ({ ...currentSettings });
+export const setThinkingEnabled = (val) => {
+    currentSettings.thinkingEnabled = val;
+    saveToStorage(SETTINGS_KEY, currentSettings);
+};

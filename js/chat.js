@@ -1,8 +1,8 @@
 /**
  * Chat logic (send, receive, history, sessions)
  */
-import { getSessionList, getSession, saveSession, deleteSession } from './storage.js';
-import { getSettings } from './settings.js';
+import { getSessionList, getSession, saveSession, deleteSession, getProjectList, saveProject, getProject, deleteProject } from './storage.js';
+import { getSettings, setThinkingEnabled } from './settings.js';
 import { getSelectedModelId } from './models.js';
 import { sendChatCompletion } from './api.js';
 import { buildMessageDOM, escapeHTML, renderMarkdown } from './renderer.js';
@@ -10,7 +10,92 @@ import { closeSidebarMobile } from './ui.js';
 import { openArtifact, initArtifactPanel } from './artifact.js';
 
 let currentSession = null;
-let pendingAttachments = []; // [{name, type, dataUrl, base64, mimeType}]
+let pendingAttachments = [];
+let activeProjectId = null; // currently selected project filter
+
+// ── Project helpers ───────────────────────────────────────────────────────
+
+/** Render the project list in the sidebar */
+export const renderProjectList = () => {
+    const container = document.getElementById('project-list');
+    if (!container) return;
+    container.innerHTML = '';
+    const projects = getProjectList();
+    if (projects.length === 0) {
+        container.innerHTML = `<div class="project-empty">No projects yet</div>`;
+        return;
+    }
+    projects.forEach(project => {
+        const div = document.createElement('div');
+        div.className = `project-item ${activeProjectId === project.id ? 'project-item--active' : ''}`;
+        div.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            <span class="project-item__name">${escapeHTML(project.name)}</span>
+            <div class="project-item__actions">
+                <button class="btn-icon btn-delete-project" title="Delete project">
+                    <svg class="icon"><use href="#icon-trash"></use></svg>
+                </button>
+            </div>
+        `;
+        div.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-delete-project')) return;
+            activeProjectId = activeProjectId === project.id ? null : project.id;
+            renderProjectList();
+            renderSidebarList();
+        });
+        div.querySelector('.btn-delete-project').addEventListener('click', (e) => {
+            e.stopPropagation();
+            showInlineConfirm(e.currentTarget, `Delete "${project.name}" and all its chats?`, () => {
+                deleteProject(project.id);
+                if (activeProjectId === project.id) {
+                    activeProjectId = null;
+                    createNewChat();
+                }
+                renderProjectList();
+                renderSidebarList();
+            });
+        });
+        container.appendChild(div);
+    });
+};
+
+/** Show a modal to create a new project */
+const showNewProjectModal = () => {
+    const existing = document.getElementById('new-project-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'new-project-modal';
+    modal.className = 'inline-project-modal';
+    modal.innerHTML = `
+        <div class="inline-project-modal__box">
+            <h3>New Project</h3>
+            <input type="text" id="new-project-name" class="form-input" placeholder="Project name..." maxlength="40" autofocus>
+            <textarea id="new-project-prompt" class="form-input form-textarea" rows="3" placeholder="Project system prompt (optional)…"></textarea>
+            <div class="inline-project-modal__actions">
+                <button class="btn-edit-save" id="btn-create-project">Create</button>
+                <button class="btn-edit-cancel" id="btn-cancel-project">Cancel</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('new-project-name').focus();
+
+    document.getElementById('btn-cancel-project').addEventListener('click', () => modal.remove());
+    document.getElementById('btn-create-project').addEventListener('click', () => {
+        const name = document.getElementById('new-project-name').value.trim();
+        if (!name) return;
+        const prompt = document.getElementById('new-project-prompt').value.trim();
+        const project = { id: Date.now().toString(), name, systemPrompt: prompt, timestamp: Date.now() };
+        saveProject(project);
+        activeProjectId = project.id;
+        modal.remove();
+        renderProjectList();
+        renderSidebarList();
+    });
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+}; // [{name, type, dataUrl, base64, mimeType}]
 
 /** Reads a File into base64 and returns an attachment object */
 const readFileAsAttachment = (file) => new Promise((resolve, reject) => {
@@ -58,7 +143,24 @@ export const initChat = () => {
     console.log('Chat initialized');
 
     initArtifactPanel();
-    
+
+    // ── Project system ────────────────────────────────────────────────────
+    document.getElementById('btn-new-project')?.addEventListener('click', showNewProjectModal);
+    renderProjectList();
+
+    // ── Thinking mode toggle ──────────────────────────────────────────────
+    const btnThinking = document.getElementById('btn-thinking-toggle');
+    const updateThinkingBtn = () => {
+        const enabled = getSettings().thinkingEnabled;
+        btnThinking?.classList.toggle('btn-tool--active', enabled);
+        if (btnThinking) btnThinking.title = enabled ? 'Thinking ON — click to disable' : 'Thinking OFF — click to enable';
+    };
+    btnThinking?.addEventListener('click', () => {
+        setThinkingEnabled(!getSettings().thinkingEnabled);
+        updateThinkingBtn();
+    });
+    updateThinkingBtn();
+
     document.getElementById('btn-new-chat')?.addEventListener('click', createNewChat);
     
     const input = document.getElementById('chat-input');
@@ -186,13 +288,13 @@ export const createNewChat = () => {
         id: Date.now().toString(),
         title: '',
         timestamp: Date.now(),
-        messages: []
+        messages: [],
+        projectId: activeProjectId || null
     };
     renderChatMessages();
     renderSidebarList();
-    
     const input = document.getElementById('chat-input');
-    if(input) input.focus();
+    if (input) input.focus();
 };
 
 const loadSessionUI = (id) => {
@@ -255,10 +357,17 @@ const showInlineConfirm = (anchorEl, message, onConfirm) => {
 export const renderSidebarList = () => {
     const container = document.getElementById('session-list');
     if (!container) return;
-    
-    const list = getSessionList();
-    
-    container.innerHTML = '<div class="sidebar__sessions-title">Recent Sessions</div>';
+
+    const allSessions = getSessionList();
+    const list = activeProjectId
+        ? allSessions.filter(s => s.projectId === activeProjectId)
+        : allSessions.filter(s => !s.projectId);
+
+    const label = activeProjectId
+        ? (getProject(activeProjectId)?.name || 'Project') + ' Chats'
+        : 'Recent Chats';
+
+    container.innerHTML = `<div class="sidebar__sessions-title">${escapeHTML(label)}</div>`;
     
     list.sort((a,b) => b.timestamp - a.timestamp).forEach(session => {
         const div = document.createElement('div');
@@ -557,8 +666,17 @@ const triggerCompletion = async () => {
             stream: true
         };
 
-        if (settings.systemPrompt) {
-            payload.messages.unshift({ role: 'system', content: settings.systemPrompt });
+        // Only request extended thinking when user has it enabled
+        if (settings.thinkingEnabled) {
+            payload.thinking = { type: 'enabled', budget_tokens: 5000 };
+        }
+
+        if (settings.systemPrompt || currentSession.projectId) {
+            const projectPrompt = currentSession.projectId
+                ? (getProject(currentSession.projectId)?.systemPrompt || '')
+                : '';
+            const combined = [projectPrompt, settings.systemPrompt].filter(Boolean).join('\n\n');
+            if (combined) payload.messages.unshift({ role: 'system', content: combined });
         }
 
         const response = await sendChatCompletion(payload, (chunk, usage, reasoningChunk, type) => {

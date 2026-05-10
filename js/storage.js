@@ -48,7 +48,7 @@ export const saveSession = (session) => {
         
         const list = getSessionList();
         const index = list.findIndex(s => s.id === session.id);
-        const listItem = { id: session.id, title: session.title, timestamp: session.timestamp };
+        const listItem = { id: session.id, title: session.title, timestamp: session.timestamp, projectId: session.projectId || null };
         
         if (index >= 0) {
             list[index] = listItem;
@@ -70,4 +70,30 @@ export const deleteSession = (id) => {
     } catch (e) {
         console.error('Failed to delete session', e);
     }
+};
+
+// --- Project Management ---
+
+export const getProjectList = () => getFromStorage('or_projects', []);
+
+export const saveProject = (project) => {
+    const list = getProjectList();
+    const idx = list.findIndex(p => p.id === project.id);
+    if (idx >= 0) list[idx] = project;
+    else list.unshift(project);
+    saveToStorage('or_projects', list);
+    saveToStorage(`or_project_${project.id}`, project);
+};
+
+export const getProject = (id) => getFromStorage(`or_project_${id}`);
+
+export const deleteProject = (id) => {
+    // Also delete all sessions belonging to this project
+    const sessions = getSessionList().filter(s => s.projectId === id);
+    sessions.forEach(s => deleteSession(s.id));
+    // Remove project
+    let list = getProjectList();
+    list = list.filter(p => p.id !== id);
+    saveToStorage('or_projects', list);
+    localStorage.removeItem(`or_project_${id}`);
 };

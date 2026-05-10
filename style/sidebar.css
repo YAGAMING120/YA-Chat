@@ -193,3 +193,110 @@
     background: transparent;
     flex-shrink: 0;
 }
+
+/* ── Project System ──────────────────────────────────────────────────────── */
+.sidebar__projects {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+}
+.sidebar__section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25rem 1rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.btn-new-project {
+    background: none;
+    border: 1px solid var(--border-medium);
+    border-radius: 4px;
+    padding: 3px 5px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    transition: all 0.15s;
+}
+.btn-new-project:hover { color: var(--text-primary); border-color: var(--text-primary); }
+
+.project-empty {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+.project-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.45rem 1rem;
+    cursor: pointer;
+    border-radius: 6px;
+    margin: 1px 6px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    transition: background 0.15s, color 0.15s;
+    position: relative;
+}
+.project-item:hover { background: var(--bg-sidebar-hover); color: var(--text-main); }
+.project-item--active { background: rgba(20,184,166,0.1); color: var(--text-primary); font-weight: 600; }
+.project-item__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-item__actions {
+    opacity: 0;
+    display: flex;
+    gap: 2px;
+    transition: opacity 0.15s;
+}
+.project-item:hover .project-item__actions { opacity: 1; }
+@media (max-width: 768px) { .project-item__actions { opacity: 1; } }
+
+/* ── New Project Modal ───────────────────────────────────────────────────── */
+.inline-project-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
+.inline-project-modal__box {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 12px;
+    padding: 1.5rem;
+    width: 380px;
+    max-width: 95vw;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.inline-project-modal__box h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0;
+}
+.inline-project-modal__actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+/* ── Thinking toggle button active state ─────────────────────────────────── */
+.btn-tool--active {
+    color: var(--text-primary) !important;
+    background: rgba(20,184,166,0.12) !important;
+    border-color: rgba(20,184,166,0.4) !important;
+}
+.btn-tool__label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-left: 2px;
+}

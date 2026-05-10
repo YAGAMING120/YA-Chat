@@ -76,11 +76,11 @@ export const sendChatCompletion = async (payload, onStream, signal) => {
                     try {
                         const data = JSON.parse(dataStr);
                         const delta = data.choices[0]?.delta || {};
-                        const reasoning = delta.reasoning || '';
+                        const reasoning = delta.reasoning || delta.thinking || '';
                         const content = delta.content || '';
 
-                        if (reasoning) {
-                            if (onStream) onStream(completeResponse, null, reasoning, 'reasoning');
+                        if (reasoning && onStream) {
+                            onStream(completeResponse, null, reasoning, 'reasoning');
                         }
                         if (content) {
                             completeResponse += content;
