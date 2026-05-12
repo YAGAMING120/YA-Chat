@@ -802,3 +802,54 @@
     color: var(--text-main);
     font-family: var(--font-sans);
 }
+
+/* ── File chip info layout update ────────────────────────────────────────── */
+.file-chip__info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+.file-chip__size {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    line-height: 1;
+}
+/* Category color accents */
+.file-chip--image  { border-color: rgba(99,102,241,0.4); }
+.file-chip--text   { border-color: rgba(20,184,166,0.4); }
+.file-chip--archive{ border-color: rgba(245,158,11,0.4); }
+.file-chip--binary { border-color: rgba(239,68,68,0.3);  }
+.file-chip--doc    { border-color: rgba(59,130,246,0.4); }
+
+/* ── Message attachment redesign ─────────────────────────────────────────── */
+.msg-attachment-file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    padding: 8px 12px;
+    min-width: 160px;
+    max-width: 240px;
+}
+.msg-attachment-icon { font-size: 1.4rem; flex-shrink: 0; }
+.msg-attachment-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.msg-attachment-name {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.msg-attachment-size {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+}

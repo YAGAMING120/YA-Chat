@@ -97,22 +97,83 @@ const showNewProjectModal = () => {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 }; // [{name, type, dataUrl, base64, mimeType}]
 
-/** Reads a File into base64 and returns an attachment object */
-const readFileAsAttachment = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        const base64 = dataUrl.split(',')[1];
-        resolve({
-            name: file.name,
-            type: file.type.startsWith('image/') ? 'image' : 'pdf',
-            mimeType: file.type,
-            dataUrl,
-            base64
-        });
+/** File type classification */
+const FILE_TYPES = {
+    image:   ['jpg','jpeg','png','gif','webp','svg','bmp','ico','tiff'],
+    text:    ['txt','md','markdown','csv','json','jsonl','xml','yaml','yml','toml','ini',
+              'js','ts','jsx','tsx','py','java','c','cpp','cs','go','rs','rb','php',
+              'swift','kt','lua','luau','sh','bash','zsh','html','css','scss','sass',
+              'sql','graphql','env','gitignore','dockerfile','makefile','r','dart','vue','svelte'],
+    archive: ['zip','rar','7z','tar','gz','bz2','xz','jar','war','ear','apk','ipa'],
+    binary:  ['exe','dll','so','bin','dat','db','sqlite','class','wasm'],
+    doc:     ['pdf','doc','docx','xls','xlsx','ppt','pptx','odt','ods'],
+};
+
+/** Get category for a file by extension */
+const getFileCategory = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase();
+    for (const [cat, exts] of Object.entries(FILE_TYPES)) {
+        if (exts.includes(ext)) return cat;
+    }
+    return 'unknown';
+};
+
+/** Get a friendly icon for a file category */
+const getFileIcon = (category, ext) => {
+    const icons = {
+        image: '🖼️', text: '📄', archive: '🗜️',
+        binary: '⚙️', doc: '📋', unknown: '📎'
     };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    const extIcons = { pdf:'📕', csv:'📊', json:'📋', sql:'🗄️',
+        py:'🐍', js:'📜', html:'🌐', jar:'☕', zip:'🗜️', apk:'📱' };
+    return extIcons[ext] || icons[category] || '📎';
+};
+
+/** Format bytes to human readable */
+const formatBytes = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes/1024).toFixed(1)} KB`;
+    return `${(bytes/1024/1024).toFixed(1)} MB`;
+};
+
+/** Read a file and return a structured attachment object */
+const readFileAsAttachment = (file) => new Promise((resolve, reject) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const category = getFileCategory(file.name);
+    const icon = getFileIcon(category, ext);
+    const sizeStr = formatBytes(file.size);
+
+    const base = { name: file.name, ext, category, icon, size: file.size, sizeStr, mimeType: file.type || 'application/octet-stream' };
+
+    if (category === 'image') {
+        // Read as dataURL for display + sending
+        const reader = new FileReader();
+        reader.onload = (e) => resolve({ ...base, type: 'image', dataUrl: e.target.result });
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+
+    } else if (category === 'text') {
+        // Read as plain text — send actual content to AI
+        if (file.size > 500 * 1024) {
+            // Too large to send (>500KB) — send truncated
+            const reader = new FileReader();
+            reader.onload = (e) => resolve({
+                ...base, type: 'text',
+                content: e.target.result.slice(0, 50000) + '\n\n[... file truncated at 50,000 chars ...]'
+            });
+            reader.onerror = reject;
+            reader.readAsText(file);
+        } else {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve({ ...base, type: 'text', content: e.target.result });
+            reader.onerror = reject;
+            reader.readAsText(file);
+        }
+
+    } else {
+        // Archive, binary, doc, unknown — send metadata only
+        resolve({ ...base, type: 'meta' });
+    }
 });
 
 /** Renders the pending attachment strip above the input */
@@ -120,17 +181,20 @@ const renderFilePreviewStrip = () => {
     const strip = document.getElementById('file-preview-strip');
     if (!strip) return;
     strip.innerHTML = '';
-    if (pendingAttachments.length === 0) {
-        strip.style.display = 'none';
-        return;
-    }
+    if (pendingAttachments.length === 0) { strip.style.display = 'none'; return; }
     strip.style.display = 'flex';
     pendingAttachments.forEach((att, idx) => {
         const chip = document.createElement('div');
-        chip.className = 'file-chip';
-        chip.innerHTML = att.type === 'image'
-            ? `<img src="${att.dataUrl}" class="file-chip__thumb" alt="${escapeHTML(att.name)}"><span class="file-chip__name">${escapeHTML(att.name)}</span><button class="file-chip__remove" data-idx="${idx}">✕</button>`
-            : `<span class="file-chip__icon">📄</span><span class="file-chip__name">${escapeHTML(att.name)}</span><button class="file-chip__remove" data-idx="${idx}">✕</button>`;
+        chip.className = `file-chip file-chip--${att.category || 'unknown'}`;
+        if (att.type === 'image') {
+            chip.innerHTML = `<img src="${att.dataUrl}" class="file-chip__thumb" alt="${escapeHTML(att.name)}">
+                <div class="file-chip__info"><span class="file-chip__name">${escapeHTML(att.name)}</span><span class="file-chip__size">${att.sizeStr}</span></div>
+                <button class="file-chip__remove" data-idx="${idx}">✕</button>`;
+        } else {
+            chip.innerHTML = `<span class="file-chip__icon">${att.icon}</span>
+                <div class="file-chip__info"><span class="file-chip__name">${escapeHTML(att.name)}</span><span class="file-chip__size">${att.sizeStr}</span></div>
+                <button class="file-chip__remove" data-idx="${idx}">✕</button>`;
+        }
         chip.querySelector('.file-chip__remove').addEventListener('click', () => {
             pendingAttachments.splice(idx, 1);
             renderFilePreviewStrip();
@@ -539,17 +603,28 @@ const handleSend = async () => {
     let apiContent;
     if (attachmentsSnapshot.length > 0) {
         apiContent = [];
+
         attachmentsSnapshot.forEach(att => {
             if (att.type === 'image') {
+                // Send image visually — AI can see it
+                apiContent.push({ type: 'image_url', image_url: { url: att.dataUrl } });
+
+            } else if (att.type === 'text') {
+                // Send actual file content — AI can read and analyze it
                 apiContent.push({
-                    type: 'image_url',
-                    image_url: { url: att.dataUrl }
+                    type: 'text',
+                    text: `[File: ${att.name} | ${att.sizeStr} | ${att.ext.toUpperCase()}]\n\`\`\`${att.ext}\n${att.content}\n\`\`\``
                 });
+
             } else {
-                // PDF: send as text note (OpenRouter doesn't support PDF binary in all models)
-                apiContent.push({ type: 'text', text: `[Attached file: ${att.name}]` });
+                // Archive / binary / doc — send metadata only
+                apiContent.push({
+                    type: 'text',
+                    text: `[Attached file: ${att.name} | ${att.sizeStr} | Type: ${att.ext.toUpperCase()} | Note: Binary/archive files cannot be read, only acknowledged]`
+                });
             }
         });
+
         if (content) apiContent.push({ type: 'text', text: content });
     } else {
         apiContent = content;

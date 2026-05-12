@@ -89,7 +89,13 @@ export const buildMessageDOM = (role, content, attachments = []) => {
                 if (att.type === 'image') {
                     attachHtml += `<img class="msg-attachment-img" src="${att.dataUrl}" alt="${escapeHTML(att.name)}" title="${escapeHTML(att.name)}">`;
                 } else {
-                    attachHtml += `<div class="msg-attachment-file">📄 ${escapeHTML(att.name)}</div>`;
+                    attachHtml += `<div class="msg-attachment-file">
+                        <span class="msg-attachment-icon">${att.icon || '📎'}</span>
+                        <div class="msg-attachment-meta">
+                            <span class="msg-attachment-name">${escapeHTML(att.name)}</span>
+                            <span class="msg-attachment-size">${att.sizeStr || ''}</span>
+                        </div>
+                    </div>`;
                 }
             });
             attachHtml += `</div>`;
