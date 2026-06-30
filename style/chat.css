@@ -215,11 +215,12 @@
     color: var(--text-main);
     padding: 1rem;
     padding-right: 4rem;
+    padding-bottom: 3.5rem;
     resize: none;
     font-size: 0.875rem;
     font-family: var(--font-sans);
     outline: none;
-    min-height: 56px;
+    min-height: 70px;
     max-height: 200px;
 }
 .chat-input::placeholder {
