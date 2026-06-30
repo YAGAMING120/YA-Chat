@@ -120,8 +120,8 @@
             </div>
             
             <div class="background-effects">
-               <div class="glow glow--teal"></div>
-               <div class="glow glow--blue"></div>
+               <div class="glow glow--orange"></div>
+               <div class="glow glow--amber"></div>
             </div>
         </main>
 
@@ -130,6 +130,22 @@
             <div class="artifact-panel__header">
                 <div class="artifact-panel__tabs" id="artifact-tabs"></div>
                 <div class="artifact-panel__actions">
+                    <div class="artifact-viewtoggle" id="artifact-viewtoggle" style="display:none;">
+                        <button class="artifact-viewtoggle__btn artifact-viewtoggle__btn--active" id="artifact-btn-mode-preview" data-mode="preview" title="Preview">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            Preview
+                        </button>
+                        <button class="artifact-viewtoggle__btn" id="artifact-btn-mode-code" data-mode="code" title="Code">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            Code
+                        </button>
+                    </div>
+                    <button class="artifact-btn artifact-btn--icon" id="artifact-btn-rerun" title="Re-run preview" style="display:none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                    </button>
+                    <button class="artifact-btn artifact-btn--icon" id="artifact-btn-newtab" title="Open preview in new tab" style="display:none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </button>
                     <button class="artifact-btn" id="artifact-btn-download" title="Download file">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         Download
@@ -143,7 +159,13 @@
                 </div>
             </div>
             <div class="artifact-panel__filename" id="artifact-filename">untitled</div>
-            <div class="artifact-panel__body" id="artifact-body"></div>
+            <div class="artifact-panel__body" id="artifact-body">
+                <pre class="artifact-pre" id="artifact-code-view"><code id="artifact-code-el"></code></pre>
+                <div class="artifact-preview" id="artifact-preview-view" style="display:none;">
+                    <iframe class="artifact-preview__frame" id="artifact-preview-frame" title="Live preview" sandbox="allow-scripts allow-modals allow-popups allow-forms allow-pointer-lock"></iframe>
+                    <div class="artifact-preview__error" id="artifact-preview-error" style="display:none;"></div>
+                </div>
+            </div>
         </aside>
         
         <!-- Modals -->
