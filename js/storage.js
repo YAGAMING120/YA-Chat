@@ -44,7 +44,24 @@ export const getSession = (id) => {
 
 export const saveSession = (session) => {
     try {
-        localStorage.setItem(`or_session_${session.id}`, JSON.stringify(session));
+        const sessionToSave = {
+            ...session,
+            messages: session.messages.map(msg => {
+                if (Array.isArray(msg.content)) {
+                    return {
+                        ...msg,
+                        content: msg.content.map(c => {
+                            if (c.type === 'image_url' && c.image_url?.url?.startsWith('data:')) {
+                                return { type: 'text', text: '[Attachment: ' + (c.image_url.url.includes('pdf') ? 'PDF Document' : 'Image') + ']' };
+                            }
+                            return c;
+                        })
+                    };
+                }
+                return msg;
+            })
+        };
+        localStorage.setItem(`or_session_${session.id}`, JSON.stringify(sessionToSave));
         
         const list = getSessionList();
         const index = list.findIndex(s => s.id === session.id);

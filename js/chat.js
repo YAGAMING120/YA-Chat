@@ -140,6 +140,12 @@ const formatBytes = (bytes) => {
 
 /** Read a file and return a structured attachment object */
 const readFileAsAttachment = (file) => new Promise((resolve, reject) => {
+    const MAX_SIZE = 100 * 1024 * 1024; // 100MB limit
+    if (file.size > MAX_SIZE) {
+        reject(new Error('File too large. Maximum size is 10MB.'));
+        return;
+    }
+
     const ext = file.name.split('.').pop().toLowerCase();
     const category = getFileCategory(file.name);
     const icon = getFileIcon(category, ext);
@@ -253,12 +259,17 @@ export const initChat = () => {
     btnAttach?.addEventListener('click', () => fileInput?.click());
     fileInput?.addEventListener('change', async (e) => {
         const files = Array.from(e.target.files || []);
+        const { showToast } = await import('./ui.js');
         for (const file of files) {
-            const att = await readFileAsAttachment(file);
-            pendingAttachments.push(att);
+            try {
+                const att = await readFileAsAttachment(file);
+                pendingAttachments.push(att);
+            } catch (err) {
+                showToast(err.message || 'Failed to read file', 'error');
+            }
         }
         renderFilePreviewStrip();
-        fileInput.value = ''; // reset so same file can be re-added
+        fileInput.value = '';
     });
 
     const list = getSessionList();
