@@ -124,10 +124,12 @@ const getFileIcon = (category, ext) => {
         image: '🖼️', text: '📄', archive: '🗜️',
         binary: '⚙️', doc: '📋', unknown: '📎'
     };
-    const extIcons = { pdf:'📕', csv:'📊', json:'📋', sql:'🗄️',
+    const extIcons = { csv:'📊', json:'📋', sql:'🗄️',
         py:'🐍', js:'📜', html:'🌐', jar:'☕', zip:'🗜️', apk:'📱' };
     return extIcons[ext] || icons[category] || '📎';
 };
+
+const PDF_ICON_HTML = '<img src="assets/pdf-icon.svg" alt="PDF" style="width:20px;height:20px;vertical-align:middle;">';
 
 /** Format bytes to human readable */
 const formatBytes = (bytes) => {
@@ -146,16 +148,19 @@ const readFileAsAttachment = (file) => new Promise((resolve, reject) => {
     const base = { name: file.name, ext, category, icon, size: file.size, sizeStr, mimeType: file.type || 'application/octet-stream' };
 
     if (category === 'image') {
-        // Read as dataURL for display + sending
         const reader = new FileReader();
         reader.onload = (e) => resolve({ ...base, type: 'image', dataUrl: e.target.result });
         reader.onerror = reject;
         reader.readAsDataURL(file);
 
+    } else if (ext === 'pdf') {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve({ ...base, type: 'pdf', base64: e.target.result });
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+
     } else if (category === 'text') {
-        // Read as plain text — send actual content to AI
         if (file.size > 500 * 1024) {
-            // Too large to send (>500KB) — send truncated
             const reader = new FileReader();
             reader.onload = (e) => resolve({
                 ...base, type: 'text',
@@ -171,7 +176,6 @@ const readFileAsAttachment = (file) => new Promise((resolve, reject) => {
         }
 
     } else {
-        // Archive, binary, doc, unknown — send metadata only
         resolve({ ...base, type: 'meta' });
     }
 });
@@ -188,6 +192,10 @@ const renderFilePreviewStrip = () => {
         chip.className = `file-chip file-chip--${att.category || 'unknown'}`;
         if (att.type === 'image') {
             chip.innerHTML = `<img src="${att.dataUrl}" class="file-chip__thumb" alt="${escapeHTML(att.name)}">
+                <div class="file-chip__info"><span class="file-chip__name">${escapeHTML(att.name)}</span><span class="file-chip__size">${att.sizeStr}</span></div>
+                <button class="file-chip__remove" data-idx="${idx}">✕</button>`;
+        } else if (att.type === 'pdf') {
+            chip.innerHTML = `<span class="file-chip__icon">${PDF_ICON_HTML}</span>
                 <div class="file-chip__info"><span class="file-chip__name">${escapeHTML(att.name)}</span><span class="file-chip__size">${att.sizeStr}</span></div>
                 <button class="file-chip__remove" data-idx="${idx}">✕</button>`;
         } else {
@@ -499,12 +507,18 @@ const renderChatMessages = () => {
     }
     
     currentSession.messages.forEach(msg => {
-        // content can be string or array (multipart with images)
         const textContent = Array.isArray(msg.content)
             ? msg.content.filter(c => c.type === 'text').map(c => c.text).join(' ')
             : msg.content;
         const imageAttachments = Array.isArray(msg.content)
-            ? msg.content.filter(c => c.type === 'image_url').map(c => ({ type: 'image', name: 'image', dataUrl: c.image_url.url }))
+            ? msg.content.filter(c => c.type === 'image_url').map(c => {
+                const isPdf = c.image_url?.url?.startsWith('data:application/pdf');
+                return { 
+                    type: isPdf ? 'pdf' : 'image', 
+                    name: isPdf ? 'PDF Document' : 'image', 
+                    dataUrl: c.image_url.url 
+                };
+            })
             : [];
         container.appendChild(buildMessageDOM(msg.role, textContent, imageAttachments));
     });
@@ -606,18 +620,18 @@ const handleSend = async () => {
 
         attachmentsSnapshot.forEach(att => {
             if (att.type === 'image') {
-                // Send image visually — AI can see it
                 apiContent.push({ type: 'image_url', image_url: { url: att.dataUrl } });
 
+            } else if (att.type === 'pdf') {
+                apiContent.push({ type: 'image_url', image_url: { url: att.base64 } });
+
             } else if (att.type === 'text') {
-                // Send actual file content — AI can read and analyze it
                 apiContent.push({
                     type: 'text',
                     text: `[File: ${att.name} | ${att.sizeStr} | ${att.ext.toUpperCase()}]\n\`\`\`${att.ext}\n${att.content}\n\`\`\``
                 });
 
             } else {
-                // Archive / binary / doc — send metadata only
                 apiContent.push({
                     type: 'text',
                     text: `[Attached file: ${att.name} | ${att.sizeStr} | Type: ${att.ext.toUpperCase()} | Note: Binary/archive files cannot be read, only acknowledged]`

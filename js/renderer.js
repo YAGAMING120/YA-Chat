@@ -88,13 +88,20 @@ export const buildMessageDOM = (role, content, attachments = []) => {
     msgDiv.className = isUser ? 'chat__message--user' : 'chat__message--ai';
 
     if (isUser) {
-        // Build attachment previews if any
         let attachHtml = '';
         if (attachments && attachments.length > 0) {
             attachHtml = `<div class="msg-attachments">`;
             attachments.forEach(att => {
                 if (att.type === 'image') {
                     attachHtml += `<img class="msg-attachment-img" src="${att.dataUrl}" alt="${escapeHTML(att.name)}" title="${escapeHTML(att.name)}">`;
+                } else if (att.type === 'pdf') {
+                    attachHtml += `<div class="msg-attachment-file msg-attachment-file--pdf">
+                        <span class="msg-attachment-icon"><img src="assets/pdf-icon.svg" alt="PDF" style="width:24px;height:24px;"></span>
+                        <div class="msg-attachment-meta">
+                            <span class="msg-attachment-name">${escapeHTML(att.name || 'PDF Document')}</span>
+                            <span class="msg-attachment-size">PDF Document</span>
+                        </div>
+                    </div>`;
                 } else {
                     attachHtml += `<div class="msg-attachment-file">
                         <span class="msg-attachment-icon">${att.icon || '📎'}</span>
