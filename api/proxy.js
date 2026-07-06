@@ -8,8 +8,8 @@ export default async function handler(req, res) {
   }
 
   const url = new URL(req.url, `https://${req.headers.host}`);
-  const path = url.pathname.replace('/api/proxy/', '');
-  const zenUrl = `https://opencode.ai/zen/v1/${path}${url.search}`;
+  const path = url.searchParams.get('path') || '';
+  const zenUrl = `https://opencode.ai/zen/v1/${path}`;
 
   try {
     const headers = {};

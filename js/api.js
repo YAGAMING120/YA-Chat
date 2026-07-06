@@ -4,7 +4,7 @@
 import { getApiKey } from './settings.js';
 import { showToast } from './ui.js';
 
-const BASE_URL = '/api/proxy';
+const PROXY_URL = '/api/proxy';
 
 const getHeaders = () => ({
     'Authorization': `Bearer ${getApiKey()}`,
@@ -21,7 +21,7 @@ const handleApiError = (status) => {
 
 export const fetchModels = async () => {
     try {
-        const response = await fetch(`${BASE_URL}/models`, {
+        const response = await fetch(`${PROXY_URL}?path=models`, {
             method: 'GET',
             headers: getHeaders()
         });
@@ -39,7 +39,7 @@ export const fetchModels = async () => {
 
 export const sendChatCompletion = async (payload, onStream, signal) => {
     try {
-        const response = await fetch(`${BASE_URL}/chat/completions`, {
+        const response = await fetch(`${PROXY_URL}?path=chat/completions`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify(payload),
