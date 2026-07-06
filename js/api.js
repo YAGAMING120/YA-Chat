@@ -8,9 +8,7 @@ const BASE_URL = 'https://opencode.ai/zen/v1';
 
 const getHeaders = () => ({
     'Authorization': `Bearer ${getApiKey()}`,
-    'Content-Type': 'application/json',
-    'HTTP-Referer': window.location.href,
-    'X-Title': 'OpenCode Zen Web Chat'
+    'Content-Type': 'application/json'
 });
 
 const handleApiError = (status) => {
