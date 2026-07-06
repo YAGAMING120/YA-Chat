@@ -8,7 +8,7 @@ const CACHE_KEY = 'opencode_zen_models_cache';
 const CACHE_TIME_KEY = 'opencode_zen_models_cache_time';
 const CACHE_TTL = 3600000; // 1 hour
 
-const FREE_MODELS = ['gpt-5-nano', 'gpt-5.4-nano', 'gpt-5.1-nano'];
+const FREE_MODELS = ['big-pickle', 'deepseek-v4-flash-free', 'mimo-v2.5-free', 'north-mini-code-free', 'nemotron-3-ultra-free'];
 
 let modelsCache = [];
 let selectedModelId = getFromStorage('opencode_zen_selected_model', 'gpt-5');
