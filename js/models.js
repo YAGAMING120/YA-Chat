@@ -8,6 +8,8 @@ const CACHE_KEY = 'opencode_zen_models_cache';
 const CACHE_TIME_KEY = 'opencode_zen_models_cache_time';
 const CACHE_TTL = 3600000; // 1 hour
 
+const FREE_MODELS = ['gpt-5-nano', 'gpt-5.4-nano', 'gpt-5.1-nano'];
+
 let modelsCache = [];
 let selectedModelId = getFromStorage('opencode_zen_selected_model', 'gpt-5');
 
@@ -33,8 +35,11 @@ const loadModels = async () => {
     
     try {
         const data = await apiFetchModels();
-        // Sort alphabetically by name
-        modelsCache = data.sort((a, b) => a.name.localeCompare(b.name));
+        modelsCache = data.map(m => ({
+            id: m.id,
+            name: formatModelName(m.id),
+            owned_by: m.owned_by || 'opencode'
+        })).sort((a, b) => a.name.localeCompare(b.name));
         saveToStorage(CACHE_KEY, modelsCache);
         saveToStorage(CACHE_TIME_KEY, now);
         renderModelsList();
@@ -46,6 +51,10 @@ const loadModels = async () => {
             container.innerHTML = `<div style="padding:1rem;color:var(--bg-danger);text-align:center;">Failed to fetch models. Check your API key.</div>`;
         }
     }
+};
+
+const formatModelName = (id) => {
+    return id.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
 export const getModels = () => modelsCache;
@@ -60,7 +69,6 @@ const setupModelsUI = () => {
     
     btnModelSelector?.addEventListener('click', () => {
         if (modalModels) modalModels.style.display = 'flex';
-        // Give a slight delay before focusing otherwise it might get overridden by modal display logic
         setTimeout(() => searchInput?.focus(), 50);
     });
     
@@ -82,7 +90,7 @@ const setupModelsUI = () => {
 };
 
 const isModelFree = (model) => {
-    return model.pricing && parseFloat(model.pricing.prompt) === 0 && parseFloat(model.pricing.completion) === 0;
+    return FREE_MODELS.includes(model.id);
 };
 
 const renderModelsList = () => {
@@ -108,7 +116,6 @@ const renderModelsList = () => {
     
     container.innerHTML = filtered.map(m => {
         const isFree = isModelFree(m);
-        const ctxLength = Math.round((m.context_length || 0)/1000) + 'k';
         return `
             <div class="model-item ${m.id === selectedModelId ? 'selected' : ''}" data-id="${m.id}">
                 <div class="model-item__header">
@@ -116,13 +123,12 @@ const renderModelsList = () => {
                     ${isFree ? `<span class="badge-free">FREE</span>` : ''}
                 </div>
                 <div class="model-item__desc">
-                    ${m.id} &bull; Ctx: ${ctxLength}
+                    ${m.id}
                 </div>
             </div>
         `;
     }).join('');
     
-    // Add click event to each item
     container.querySelectorAll('.model-item').forEach(el => {
         el.addEventListener('click', () => {
             selectedModelId = el.dataset.id;
