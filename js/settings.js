@@ -3,7 +3,7 @@
  */
 import { saveToStorage, getFromStorage, clearStorage } from './storage.js';
 
-const SETTINGS_KEY = 'openrouter_settings';
+const SETTINGS_KEY = 'opencode_zen_settings';
 const DEFAULT_SETTINGS = {
     apiKey: '',
     systemPrompt: '',

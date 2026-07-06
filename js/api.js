@@ -1,23 +1,23 @@
 /**
- * All OpenRouter API calls
+ * All OpenCode Zen API calls
  */
 import { getApiKey } from './settings.js';
 import { showToast } from './ui.js';
 
-const BASE_URL = 'https://openrouter.ai/api/v1';
+const BASE_URL = 'https://opencode.ai/zen/v1';
 
 const getHeaders = () => ({
     'Authorization': `Bearer ${getApiKey()}`,
     'Content-Type': 'application/json',
-    'HTTP-Referer': window.location.href, // Or setup a predefined one like 'http://localhost'
-    'X-Title': 'OpenRouter Web Chat'
+    'HTTP-Referer': window.location.href,
+    'X-Title': 'OpenCode Zen Web Chat'
 });
 
 const handleApiError = (status) => {
     if (status === 401) showToast('Invalid API Key setup. Check Settings.', 'error');
-    else if (status === 402) showToast('Insufficient credits on OpenRouter.', 'error');
+    else if (status === 402) showToast('Insufficient credits on OpenCode Zen.', 'error');
     else if (status === 429) showToast('Rate limited or too many requests.', 'error');
-    else if (status >= 500) showToast('OpenRouter server error.', 'error');
+    else if (status >= 500) showToast('OpenCode Zen server error.', 'error');
     else showToast(`API Error: ${status}`, 'error');
 };
 

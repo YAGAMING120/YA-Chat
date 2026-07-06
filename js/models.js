@@ -4,12 +4,12 @@
 import { fetchModels as apiFetchModels } from './api.js';
 import { getFromStorage, saveToStorage } from './storage.js';
 
-const CACHE_KEY = 'openrouter_models_cache';
-const CACHE_TIME_KEY = 'openrouter_models_cache_time';
+const CACHE_KEY = 'opencode_zen_models_cache';
+const CACHE_TIME_KEY = 'opencode_zen_models_cache_time';
 const CACHE_TTL = 3600000; // 1 hour
 
 let modelsCache = [];
-let selectedModelId = getFromStorage('openrouter_selected_model', 'anthropic/claude-3-sonnet');
+let selectedModelId = getFromStorage('opencode_zen_selected_model', 'gpt-5');
 
 export const initModels = async () => {
     console.log('Models initialized');
@@ -126,7 +126,7 @@ const renderModelsList = () => {
     container.querySelectorAll('.model-item').forEach(el => {
         el.addEventListener('click', () => {
             selectedModelId = el.dataset.id;
-            saveToStorage('openrouter_selected_model', selectedModelId);
+            saveToStorage('opencode_zen_selected_model', selectedModelId);
             document.getElementById('modal-models').style.display = 'none';
             renderModelsList();
             updateCurrentModelUI();

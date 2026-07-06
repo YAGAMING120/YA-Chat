@@ -7,7 +7,7 @@ import { initModels } from './models.js';
 import { initSettings } from './settings.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('MentorDev OpenRouter Chat Initializing...');
+    console.log('YA Chat OpenCode Zen Initializing...');
     initSettings();
     initModels();
     initChat();
