@@ -4,7 +4,7 @@
 import { getApiKey } from './settings.js';
 import { showToast } from './ui.js';
 
-const BASE_URL = 'https://opencode.ai/zen/v1';
+const BASE_URL = '/api/proxy';
 
 const getHeaders = () => ({
     'Authorization': `Bearer ${getApiKey()}`,
