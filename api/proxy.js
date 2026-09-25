@@ -1,3 +1,5 @@
+const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -7,27 +9,33 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const url = new URL(req.url, `https://${req.headers.host}`);
-  const path = url.searchParams.get('path') || '';
-  const zenUrl = `https://opencode.ai/zen/v1/${path}`;
+  const url = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
+  const path = (url.searchParams.get('path') || '').replace(/^\/+/, '');
+
+  if (!/^[a-zA-Z0-9_\-./]+$/.test(path) || path.split('/').includes('..')) {
+    return res.status(400).json({ error: { message: 'Invalid API path' } });
+  }
+
+  const target = `${OPENROUTER_BASE}/${path}`;
 
   try {
-    const headers = {};
+    const headers = {
+      'Content-Type': 'application/json',
+      // App attribution required by OpenRouter for ranked/analytics apps
+      'HTTP-Referer': req.headers.origin || `https://${req.headers.host || 'localhost'}`,
+      'X-Title': 'YA Chat'
+    };
     if (req.headers.authorization) {
       headers['Authorization'] = req.headers.authorization;
     }
-    headers['Content-Type'] = 'application/json';
 
-    const fetchOptions = {
-      method: req.method,
-      headers,
-    };
+    const fetchOptions = { method: req.method, headers };
 
     if (req.method === 'POST') {
-      fetchOptions.body = JSON.stringify(req.body);
+      fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
     }
 
-    const response = await fetch(zenUrl, fetchOptions);
+    const response = await fetch(target, fetchOptions);
 
     res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
     res.status(response.status);
@@ -36,6 +44,7 @@ export default async function handler(req, res) {
     if (contentType.includes('text/event-stream')) {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       while (true) {
@@ -45,11 +54,15 @@ export default async function handler(req, res) {
       }
       res.end();
     } else {
-      const data = await response.json();
-      res.json(data);
+      const text = await response.text();
+      try {
+        res.json(JSON.parse(text));
+      } catch (e) {
+        res.send(text);
+      }
     }
   } catch (error) {
     console.error('Proxy error:', error);
-    res.status(500).json({ error: 'Proxy request failed' });
+    res.status(500).json({ error: { message: 'Proxy request failed' } });
   }
 }

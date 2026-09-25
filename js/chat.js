@@ -766,9 +766,9 @@ const triggerCompletion = async () => {
             stream: true
         };
 
-        // Only request extended thinking when user has it enabled
+        // Only request extended reasoning when user has it enabled
         if (settings.thinkingEnabled) {
-            payload.thinking = { type: 'enabled', budget_tokens: 5000 };
+            payload.reasoning = { enabled: true };
         }
 
         if (settings.systemPrompt || currentSession.projectId) {

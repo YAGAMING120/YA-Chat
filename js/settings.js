@@ -3,7 +3,8 @@
  */
 import { saveToStorage, getFromStorage, clearStorage } from './storage.js';
 
-const SETTINGS_KEY = 'opencode_zen_settings';
+const SETTINGS_KEY = 'or_settings';
+const LEGACY_SETTINGS_KEY = 'opencode_zen_settings';
 const DEFAULT_SETTINGS = {
     apiKey: '',
     systemPrompt: '',
@@ -17,9 +18,17 @@ const DEFAULT_SETTINGS = {
 let currentSettings = { ...DEFAULT_SETTINGS };
 
 export const initSettings = () => {
-    // Load from storage
-    const stored = getFromStorage(SETTINGS_KEY, {});
-    currentSettings = { ...DEFAULT_SETTINGS, ...stored };
+    // Load from storage (migrate old settings, but never carry over the old
+    // provider's API key — it is not valid on OpenRouter)
+    let stored = getFromStorage(SETTINGS_KEY, null);
+    if (!stored) {
+        const legacy = getFromStorage(LEGACY_SETTINGS_KEY, null);
+        if (legacy) {
+            stored = { ...legacy, apiKey: '' };
+            try { localStorage.removeItem(LEGACY_SETTINGS_KEY); } catch (e) { /* ignore */ }
+        }
+    }
+    currentSettings = { ...DEFAULT_SETTINGS, ...(stored || {}) };
 
     // DOM Elements
     const apiKeyInput = document.getElementById('settings-api-key');

@@ -1,20 +1,38 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# YA Chat
 
-# Run and deploy your AI Studio app
+A streaming chat UI for [OpenRouter](https://openrouter.ai) — hundreds of models behind one OpenAI-compatible API.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/f9c72bcd-54a2-4acc-911f-875785673251
+- Streaming responses (SSE) with live reasoning/thinking blocks
+- Model picker with search, provider grouping, and a free-models filter (`:free` variants)
+- Chat history, projects, system prompts, attachments (images, PDF, text)
+- Artifact panel with live code preview
 
-## Run Locally
+## Setup
 
-**Prerequisites:**  Node.js
+1. Get an API key at [openrouter.ai/keys](https://openrouter.ai/keys)
+2. Open the app → **Settings** → paste the key (stored only in your browser)
+3. Pick a model from the header selector
 
+## Run locally
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+The `/api/proxy` route is a Vercel serverless function, so run the project with the Vercel CLI:
+
+```
+npm i -g vercel
+vercel dev
+```
+
+## Deploy
+
+Push to a Git repo and import it into Vercel, or run `vercel`. No environment variables are required — see [.env.example](.env.example).
+
+## Architecture
+
+| Path | Purpose |
+| --- | --- |
+| `index.html` | App shell |
+| `js/` | UI, chat, storage, model list, API client |
+| `api/proxy.js` | Serverless proxy to `https://openrouter.ai/api/v1` (keeps request paths stable and adds app attribution headers) |
+| `style/` | Stylesheets |

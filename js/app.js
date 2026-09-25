@@ -7,7 +7,7 @@ import { initModels } from './models.js';
 import { initSettings } from './settings.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('YA Chat OpenCode Zen Initializing...');
+    console.log('YA Chat OpenRouter Initializing...');
     initSettings();
     initModels();
     initChat();

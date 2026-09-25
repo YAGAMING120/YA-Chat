@@ -78,6 +78,15 @@
     color: var(--text-muted);
 }
 
+.form-hint a {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+
+.form-hint a:hover {
+    color: var(--bg-button-primary);
+}
+
 .form-input {
     background-color: var(--bg-input);
     border: 1px solid var(--border-medium);
