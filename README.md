@@ -5,7 +5,8 @@ A streaming chat UI for [OpenRouter](https://openrouter.ai) — hundreds of mode
 ## Features
 
 - Streaming responses (SSE) with live reasoning/thinking blocks
-- Model picker with search, provider grouping, and a free-models filter (`:free` variants)
+- Model picker with search, provider grouping, modality badges (`FREE`, `TTS`, `EMBED`, `RERANK`, …) and filters for All / Free / Chat / Voice — every free model on OpenRouter, including the ones the default `/models` call hides
+- **Text to speech**: the speaker button in the composer (or **Listen** on any reply) opens a TTS modal — pick a voice model/voice/speed, generate MP3 (or raw PCM) and download it. Powered by OpenRouter's free `deepgram/flux-tts:free` and `fish-audio/s2.1-pro-free:free`
 - Chat history, projects, system prompts, attachments (images, PDF, text)
 - Artifact panel with live code preview
 - **Canvas**: the model can reply into an editable side panel — a rich-text document or a code file with preview. Toggle it from the composer, or let the model open it by emitting a `<canvas>` block. Canvas edits round-trip back to the model (`Ask AI to edit`), and the panel is persisted per session.
@@ -36,7 +37,9 @@ Push to a Git repo and import it into Vercel, or run `vercel`. No environment va
 | `index.html` | App shell |
 | `js/` | UI, chat, storage, model list, API client |
 | `js/canvas.js` | Canvas panel: document/code editors, `<canvas>` protocol, AI-edit commands |
-| `api/proxy.js` | Serverless proxy to `https://openrouter.ai/api/v1` (keeps request paths stable and adds app attribution headers) |
+| `js/tts.js` | Text-to-speech modal: model/voice picking, `POST /audio/speech`, MP3 download |
+| `js/capabilities.js` | Modality lookup shared by the picker, composer and TTS (chat vs speech vs embeddings) |
+| `api/proxy.js` | Serverless proxy to `https://openrouter.ai/api/v1` (forwards query params, streams SSE, passes audio bytes through untouched) |
 | `style/` | Stylesheets |
 
 ## Canvas protocol

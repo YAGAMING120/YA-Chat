@@ -37,9 +37,16 @@ const handleApiError = async (response, detail) => {
     else showToast(detail || `API Error: ${status}`, 'error');
 };
 
-export const fetchModels = async () => {
+/**
+ * Modalities the picker shows. OpenRouter's /models defaults to text only,
+ * so we must ask for the rest explicitly (speech / embeddings / rerank / ...).
+ */
+export const MODEL_MODALITIES = 'text,speech,embeddings,rerank,decisions';
+
+export const fetchModels = async (modalities = MODEL_MODALITIES) => {
     try {
-        const response = await fetch(`${PROXY_URL}?path=models`, {
+        const qs = new URLSearchParams({ path: 'models', output_modalities: modalities }).toString();
+        const response = await fetch(`${PROXY_URL}?${qs}`, {
             method: 'GET',
             headers: getHeaders()
         });
@@ -52,6 +59,37 @@ export const fetchModels = async () => {
         return data.data;
     } catch (e) {
         console.error('Error fetching models:', e);
+        throw e;
+    }
+};
+
+/**
+ * Text-to-speech via POST /audio/speech — returns the raw audio as a Blob.
+ * Docs: https://openrouter.ai/docs/guides/overview/multimodal/tts
+ */
+export const createSpeech = async ({ model, input, voice, speed, format = 'mp3' }, signal) => {
+    const payload = { model, input, response_format: format };
+    if (voice) payload.voice = voice;
+    if (speed && speed !== 1) payload.speed = speed;
+
+    try {
+        const response = await fetch(`${PROXY_URL}?path=audio/speech`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(payload),
+            signal
+        });
+        if (!response.ok) {
+            const detail = await readErrorMessage(response);
+            handleApiError(response, detail);
+            throw new Error(detail || `API returned ${response.status}`);
+        }
+        const blob = await response.blob();
+        if (!blob.size) throw new Error('The speech service returned empty audio.');
+        return blob;
+    } catch (e) {
+        if (e.name === 'AbortError') throw e;
+        console.error('Speech request error:', e);
         throw e;
     }
 };

@@ -59,6 +59,16 @@ export const supportsParam = (meta, param) => !meta || meta.params.includes(para
 export const canReadImages = (meta) => supportsInput(meta, 'image');
 export const canGenerateImages = (meta) => supportsOutput(meta, 'image');
 
+/** Models whose output includes speech (via /audio/speech) or audio */
+export const canSpeak = (meta) => supportsOutput(meta, 'speech') || supportsOutput(meta, 'audio');
+
+/**
+ * Can this model produce a normal chat reply? Text is the only chat output.
+ * Unknown models (not in the catalog) are assumed capable so we never block a
+ * request just because the catalog failed to load.
+ */
+export const canChat = (meta) => !meta || supportsOutput(meta, 'text');
+
 /** A model that can read PDFs through OpenRouter's file parser (all of them can) */
 export const canReadFiles = () => true;
 

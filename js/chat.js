@@ -6,12 +6,14 @@ import { getSettings, setThinkingEnabled } from './settings.js';
 import { getSelectedModelId } from './models.js';
 import { sendChatCompletion } from './api.js';
 import { buildMessageDOM, escapeHTML, renderMarkdown, parseCanvasBlocks, stripCanvasForStream } from './renderer.js';
-import { closeSidebarMobile } from './ui.js';
+import { closeSidebarMobile, showToast } from './ui.js';
 import { openArtifact, initArtifactPanel } from './artifact.js';
 import {
     initCanvasPanel, applyCanvasBlock, openCanvasFromChip, restoreCanvas,
     isCanvasWanted, setCanvasWanted, buildCanvasContext, CANVAS_INSTRUCTION
 } from './canvas.js';
+import { initTTS, openTTS } from './tts.js';
+import { getMeta, canChat } from './capabilities.js';
 
 let currentSession = null;
 let pendingAttachments = [];
@@ -229,6 +231,7 @@ export const initChat = () => {
 
     initArtifactPanel();
     initCanvasPanel();
+    initTTS();
 
     // ── Canvas mode toggle ────────────────────────────────────────────────
     document.getElementById('btn-canvas-toggle')
@@ -353,6 +356,13 @@ export const initChat = () => {
                 copyMsgBtn.innerHTML = 'Copied!';
                 setTimeout(() => copyMsgBtn.innerHTML = orig, 2000);
             }
+        }
+
+        // Listen to this reply via text-to-speech
+        const listenBtn = e.target.closest('.btn-listen-msg');
+        if (listenBtn) {
+            const rawMsg = listenBtn.dataset.msg;
+            if (rawMsg) openTTS(decodeURIComponent(rawMsg));
         }
 
         // Copy user message
@@ -661,6 +671,14 @@ const handleSend = async () => {
     const input = document.getElementById('chat-input');
     const content = input.value.trim();
     if (!content && pendingAttachments.length === 0) return;
+
+    // Guard: embeddings/rerank/decisions/speech models can't produce a reply
+    const meta = getMeta(getSelectedModelId());
+    if (meta && !canChat(meta)) {
+        showToast(`${meta.name} can't reply in chat — pick a text model instead.`, 'error');
+        document.getElementById('modal-models').style.display = 'flex';
+        return;
+    }
 
     input.value = '';
 

@@ -16,7 +16,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: { message: 'Invalid API path' } });
   }
 
-  const target = `${OPENROUTER_BASE}/${path}`;
+  // Forward every query param except our own routing key (?path=) so callers
+  // can pass filters like ?path=models&output_modalities=speech
+  const target = new URL(`${OPENROUTER_BASE}/${path}`);
+  url.searchParams.forEach((value, key) => {
+    if (key !== 'path') target.searchParams.set(key, value);
+  });
 
   try {
     const headers = {
@@ -37,11 +42,14 @@ export default async function handler(req, res) {
 
     const response = await fetch(target, fetchOptions);
 
-    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
-    res.status(response.status);
-
     const contentType = response.headers.get('content-type') || '';
+    // Binary payloads (audio from /audio/speech, images) must reach the client
+    // as raw bytes — decoding them as text would corrupt them.
+    const isText = /^(text\/|application\/(json|xml|javascript)|image\/svg)/i.test(contentType) || contentType === '';
+
     if (contentType.includes('text/event-stream')) {
+      res.setHeader('Content-Type', contentType);
+      res.status(response.status);
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-Accel-Buffering', 'no');
@@ -53,13 +61,21 @@ export default async function handler(req, res) {
         res.write(decoder.decode(value, { stream: true }));
       }
       res.end();
-    } else {
+    } else if (isText) {
+      res.setHeader('Content-Type', contentType || 'application/json');
+      res.status(response.status);
       const text = await response.text();
       try {
         res.json(JSON.parse(text));
       } catch (e) {
         res.send(text);
       }
+    } else {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      res.status(response.status);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Length', buffer.length);
+      res.send(buffer);
     }
   } catch (error) {
     console.error('Proxy error:', error);

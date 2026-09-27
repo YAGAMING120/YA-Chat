@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="style/chat.css">
     <link rel="stylesheet" href="style/modal.css">
     <link rel="stylesheet" href="style/canvas.css">
+    <link rel="stylesheet" href="style/tts.css">
     
     <!-- External Libraries (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -112,6 +113,10 @@
                             <button class="btn-tool" id="btn-canvas-toggle" title="Canvas — get a reply in an editable document">
                                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg>
                                 <span class="btn-tool__label">Canvas</span>
+                            </button>
+                            <button class="btn-tool" id="btn-tts" title="Text to speech — turn text into an MP3 voice">
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                                <span class="btn-tool__label">Speak</span>
                             </button>
                             <div class="divider-vertical"></div>
                             <span class="shortcut-hint">Shift+Enter for newline</span>
@@ -311,14 +316,77 @@
                             <svg class="icon" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-dim);"><use href="#icon-search"></use></svg>
                             <input type="text" id="input-search-models" class="form-input" style="width: 100%; padding-left: 2.5rem;" placeholder="Search models by name or ID...">
                         </div>
-                        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <div style="display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;">
                             <button class="btn-filter active" data-filter="all">All Models</button>
                             <button class="btn-filter" data-filter="free">Free API Only</button>
+                            <button class="btn-filter" data-filter="chat">Chat</button>
+                            <button class="btn-filter" data-filter="voice">Voice (TTS)</button>
                         </div>
                     </div>
                     <div class="models-list" id="models-list-container" style="padding: 1rem 0; overflow-y: auto;">
                         <div style="text-align: center; color: var(--text-dim); padding: 2rem;">Loading models... Make sure your API key is set.</div>
                     </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-overlay" id="modal-tts" style="display: none;">
+            <div class="modal" id="tts-modal-content" style="max-width: 560px;">
+                <div class="modal__header">
+                    <h2 class="modal__title">Text to Speech</h2>
+                    <button class="btn-icon btn-close-modal" id="btn-close-tts">
+                        <svg class="icon"><use href="#icon-plus" style="transform: rotate(45deg);"></use></svg>
+                    </button>
+                </div>
+                <div class="modal__body">
+                    <label class="form-label" for="tts-text">Text to speak</label>
+                    <textarea id="tts-text" class="form-input tts-textarea" rows="5" placeholder="Type or paste the text you want converted to speech..."></textarea>
+                    <div class="tts-meta">
+                        <span id="tts-count" class="tts-count">0 / 4,000</span>
+                    </div>
+
+                    <div class="tts-grid">
+                        <div>
+                            <label class="form-label" for="tts-model">Voice model</label>
+                            <select id="tts-model" class="form-input"></select>
+                        </div>
+                        <div>
+                            <label class="form-label" for="tts-voice">Voice</label>
+                            <select id="tts-voice" class="form-input"></select>
+                        </div>
+                    </div>
+                    <div class="tts-grid">
+                        <div>
+                            <label class="form-label" for="tts-speed">Speed</label>
+                            <select id="tts-speed" class="form-input">
+                                <option value="0.75">0.75×</option>
+                                <option value="1" selected>1× (normal)</option>
+                                <option value="1.25">1.25×</option>
+                                <option value="1.5">1.5×</option>
+                                <option value="2">2×</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label" for="tts-format">Format</label>
+                            <select id="tts-format" class="form-input">
+                                <option value="mp3" selected>MP3</option>
+                                <option value="pcm">PCM (raw)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="tts-actions">
+                        <button class="btn-primary" id="tts-generate">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                            <span class="tts-generate__label">Generate speech</span>
+                        </button>
+                        <a class="btn-secondary" id="tts-download" download="speech.mp3" style="display:none;">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Download MP3
+                        </a>
+                    </div>
+
+                    <div id="tts-status" class="tts-status" style="display:none;"></div>
+                    <audio id="tts-audio" class="tts-audio" controls style="display:none;"></audio>
                 </div>
             </div>
         </div>
