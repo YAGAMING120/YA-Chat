@@ -2,15 +2,15 @@
  * Model list fetching, filtering, searching, caching
  *
  * OpenRouter's /models defaults to output_modalities=text, so we explicitly ask
- * for speech / embeddings / rerank / decisions too — otherwise the free voice
- * models never appear in the picker.
+ * for speech / embeddings / rerank / decisions / image too — otherwise the free
+ * voice models and the image models never appear in the picker.
  */
 import { fetchModels as apiFetchModels } from './api.js';
 import { getFromStorage, saveToStorage } from './storage.js';
 import { setCatalog, setSelected, getMeta, canChat } from './capabilities.js';
 import { showToast } from './ui.js';
 
-const CACHE_KEY = 'or_models_cache_v2';
+const CACHE_KEY = 'or_models_cache_v3';
 const CACHE_TIME_KEY = 'or_models_cache_time';
 const SELECTED_KEY = 'or_selected_model';
 
@@ -143,6 +143,11 @@ export const getModelEntry = (id) => modelsCache.find(m => m.id === id) || null;
 /** Free (and paid) speech models, free first — used by the TTS modal */
 export const getSpeechModels = () => modelsCache
     .filter(m => m.output.includes('speech') || m.output.includes('audio'))
+    .sort((a, b) => (b.free - a.free) || a.name.localeCompare(b.name));
+
+/** Image-output models, free first — used by the image generation tool */
+export const getImageModels = () => modelsCache
+    .filter(m => m.output.includes('image'))
     .sort((a, b) => (b.free - a.free) || a.name.localeCompare(b.name));
 
 const setupModelsUI = () => {

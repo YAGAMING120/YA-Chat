@@ -5,7 +5,7 @@ import { getSessionList, getSession, saveSession, deleteSession, getProjectList,
 import { getSettings, setThinkingEnabled } from './settings.js';
 import { getSelectedModelId } from './models.js';
 import { sendChatCompletion } from './api.js';
-import { buildMessageDOM, escapeHTML, renderMarkdown, parseCanvasBlocks, stripCanvasForStream } from './renderer.js';
+import { buildMessageDOM, escapeHTML, renderMarkdown, parseCanvasBlocks, stripCanvasForStream, normalizeSources } from './renderer.js';
 import { closeSidebarMobile, showToast } from './ui.js';
 import { openArtifact, initArtifactPanel } from './artifact.js';
 import {
@@ -13,6 +13,7 @@ import {
     isCanvasWanted, setCanvasWanted, buildCanvasContext, CANVAS_INSTRUCTION
 } from './canvas.js';
 import { initTTS, openTTS } from './tts.js';
+import { initTools, buildToolsPayload, getToolChipLabel, getEnabledToolIds, TOOL_DEFS } from './tools.js';
 import { getMeta, canChat } from './capabilities.js';
 
 let currentSession = null;
@@ -232,6 +233,7 @@ export const initChat = () => {
     initArtifactPanel();
     initCanvasPanel();
     initTTS();
+    initTools();
 
     // ── Canvas mode toggle ────────────────────────────────────────────────
     document.getElementById('btn-canvas-toggle')
@@ -589,7 +591,8 @@ const renderChatMessages = () => {
                 };
             })
             : [];
-        container.appendChild(buildMessageDOM(msg.role, textContent, imageAttachments));
+        container.appendChild(buildMessageDOM(msg.role, textContent, imageAttachments,
+            msg.role === 'user' ? {} : { sources: normalizeSources(msg.annotations) }));
     });
     
     scrollToBottom();
@@ -765,6 +768,8 @@ const triggerCompletion = async () => {
     let lastUsage = null;
     let hasStartedContent = false;
     let rafPending = false;
+    let sources = [];        // citations collected from url_citation annotations
+    let toolLabel = null;    // status line for the server tool currently running
 
     // Dedicated elements for live update — no full re-render
     const reasoningEl = document.createElement('details');
@@ -782,8 +787,13 @@ const triggerCompletion = async () => {
     const cursorEl = document.createElement('span');
     cursorEl.className = 'cursor-blink';
 
+    const toolChipEl = document.createElement('div');
+    toolChipEl.className = 'tool-activity';
+    toolChipEl.style.display = 'none';
+
     contentEl.innerHTML = '';
     contentEl.appendChild(reasoningEl);
+    contentEl.appendChild(toolChipEl);
     contentEl.appendChild(liveTextEl);
     contentEl.appendChild(cursorEl);
 
@@ -795,6 +805,11 @@ const triggerCompletion = async () => {
             reasoningEl.style.display = '';
             reasoningEl.open = !hasStartedContent;
             reasoningTextEl.textContent = reasoningContent; // textContent = no HTML parsing cost
+        }
+
+        if (toolLabel) {
+            toolChipEl.style.display = '';
+            toolChipEl.innerHTML = `<span class="tool-activity__dot"></span>${escapeHTML(toolLabel)}`;
         }
 
         if (hasStartedContent) {
@@ -837,6 +852,9 @@ const triggerCompletion = async () => {
             payload.reasoning = { enabled: true };
         }
 
+        // Server tools the user switched on in the Tools popover
+        Object.assign(payload, buildToolsPayload());
+
         const systemParts = [];
         if (currentSession.projectId) {
             systemParts.push(getProject(currentSession.projectId)?.systemPrompt || '');
@@ -849,9 +867,14 @@ const triggerCompletion = async () => {
         const combined = systemParts.filter(Boolean).join('\n\n');
         if (combined) payload.messages.unshift({ role: 'system', content: combined });
 
-        const response = await sendChatCompletion(payload, (chunk, usage, reasoningChunk, type) => {
+        const response = await sendChatCompletion(payload, (chunk, usage, reasoningChunk, type, extra) => {
             if (type === 'reasoning') {
                 reasoningContent += reasoningChunk;
+            } else if (type === 'annotations') {
+                sources = normalizeSources(extra);
+            } else if (type === 'tool') {
+                const label = (extra || []).map(getToolChipLabel).find(Boolean);
+                if (label) toolLabel = label;
             } else {
                 streamedContent = chunk;
                 hasStartedContent = true;
@@ -862,7 +885,9 @@ const triggerCompletion = async () => {
 
         if (response) streamedContent = response;
 
-        currentSession.messages.push({ role: 'assistant', content: streamedContent });
+        const assistantMsg = { role: 'assistant', content: streamedContent };
+        if (sources.length) assistantMsg.annotations = sources;
+        currentSession.messages.push(assistantMsg);
         currentSession.timestamp = Date.now();
         saveSession(currentSession);
 
@@ -885,7 +910,10 @@ const triggerCompletion = async () => {
         contentEl.innerHTML = finalHtml;
 
         if (lastUsage) {
-            aiDOM.querySelector('.chat__message-meta').textContent = `${lastUsage.total_tokens || '?'} tokens`;
+            const parts = [`${lastUsage.total_tokens || '?'} tokens`];
+            const searches = lastUsage.server_tool_use?.web_search_requests;
+            if (searches) parts.push(`${searches} web search${searches === 1 ? '' : 'es'}`);
+            aiDOM.querySelector('.chat__message-meta').textContent = parts.join(' • ');
         }
 
     } catch (e) {
@@ -895,7 +923,9 @@ const triggerCompletion = async () => {
         if (e.name === 'AbortError') {
             contentEl.innerHTML = renderMarkdown(streamedContent) + ' <span style="color:var(--text-dim);font-size:0.75rem;">[Stopped]</span>';
             if (streamedContent) {
-                currentSession.messages.push({ role: 'assistant', content: streamedContent + ' [Stopped]' });
+                const stoppedMsg = { role: 'assistant', content: streamedContent + ' [Stopped]' };
+                if (sources.length) stoppedMsg.annotations = sources;
+                currentSession.messages.push(stoppedMsg);
                 saveSession(currentSession);
             }
         } else {
@@ -910,7 +940,7 @@ const triggerCompletion = async () => {
             btnSend.disabled = false;
         }
 
-        const newMsgDom = buildMessageDOM('assistant', streamedContent);
+        const newMsgDom = buildMessageDOM('assistant', streamedContent, [], { sources });
         const metaText = aiDOM.querySelector('.chat__message-meta').textContent;
         aiDOM.innerHTML = newMsgDom.innerHTML;
         // Restore thinking block into final DOM

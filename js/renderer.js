@@ -275,7 +275,7 @@ export const renderMarkdown = (text) => {
     if (window.marked && window.DOMPurify) {
         html = window.DOMPurify.sanitize(window.marked.parse(withMathTokens), {
             ADD_TAGS: ['use', 'svg', 'button'],
-            ADD_ATTR: ['href', 'data-code', 'data-msg', 'data-canvas'],
+            ADD_ATTR: ['href', 'data-code', 'data-msg', 'data-canvas', 'target', 'rel', 'src', 'alt'],
             FORBID_TAGS: ['style', 'script']
         });
     } else {
@@ -290,7 +290,53 @@ export const renderMarkdown = (text) => {
     return html;
 };
 
-export const buildMessageDOM = (role, content, attachments = []) => {
+/**
+ * Normalizes OpenRouter `url_citation` annotations into `{url, title, host}`,
+ * deduped and restricted to http(s) so a model can't emit a javascript: link.
+ */
+export const normalizeSources = (annotations) => {
+    if (!Array.isArray(annotations)) return [];
+    const seen = new Set();
+    const out = [];
+    annotations.forEach(a => {
+        const c = (a && a.url_citation) || a || {};
+        const url = c.url;
+        if (typeof url !== 'string') return;
+        let host = '';
+        try {
+            const parsed = new URL(url);
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return;
+            host = parsed.hostname.replace(/^www\./, '');
+        } catch (e) {
+            return;
+        }
+        if (seen.has(url)) return;
+        seen.add(url);
+        out.push({ url, title: c.title || host || url, host });
+    });
+    return out;
+};
+
+const renderSources = (sources) => {
+    if (!sources || !sources.length) return '';
+    return `<div class="msg-sources">
+        <div class="msg-sources__label">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="3" y1="12" x2="21" y2="12"></line><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"></path></svg>
+            ${sources.length === 1 ? 'Source' : `Sources · ${sources.length}`}
+        </div>
+        <div class="msg-sources__list">
+            ${sources.map((s, i) => `<a class="msg-source" href="${escapeHTML(s.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(s.url)}">
+                <span class="msg-source__num">${i + 1}</span>
+                <span class="msg-source__body">
+                    <span class="msg-source__title">${escapeHTML(s.title)}</span>
+                    <span class="msg-source__host">${escapeHTML(s.host)}</span>
+                </span>
+            </a>`).join('')}
+        </div>
+    </div>`;
+};
+
+export const buildMessageDOM = (role, content, attachments = [], extras = {}) => {
     const isUser = role === 'user';
     const msgDiv = document.createElement('div');
     msgDiv.className = isUser ? 'chat__message--user' : 'chat__message--ai';
@@ -346,6 +392,7 @@ export const buildMessageDOM = (role, content, attachments = []) => {
                 <div class="chat__content">
                     ${content ? renderMarkdown(content) : ''}
                 </div>
+                ${renderSources(extras.sources)}
                 <div class="chat__message-actions">
                     <button class="btn-action btn-copy-msg" data-msg="${encodeURIComponent(content)}">
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>

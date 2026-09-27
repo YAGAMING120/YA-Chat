@@ -39,9 +39,9 @@ const handleApiError = async (response, detail) => {
 
 /**
  * Modalities the picker shows. OpenRouter's /models defaults to text only,
- * so we must ask for the rest explicitly (speech / embeddings / rerank / ...).
+ * so we must ask for the rest explicitly (speech / embeddings / image / ...).
  */
-export const MODEL_MODALITIES = 'text,speech,embeddings,rerank,decisions';
+export const MODEL_MODALITIES = 'text,speech,embeddings,rerank,decisions,image';
 
 export const fetchModels = async (modalities = MODEL_MODALITIES) => {
     try {
@@ -146,13 +146,30 @@ export const sendChatCompletion = async (payload, onStream, signal) => {
                         break;
                     }
 
-                    const delta = data.choices?.[0]?.delta || {};
+                    const choice = (data.choices && data.choices[0]) || {};
+                    const delta = choice.delta || {};
                     const reasoning = extractReasoning(delta);
                     const content = delta.content || '';
 
                     if (reasoning && onStream) {
                         onStream(completeResponse, null, reasoning, 'reasoning');
                     }
+
+                    // Server-tool activity — the model calling web_search / web_fetch / image_generation
+                    const toolCalls = delta.tool_calls || choice.message?.tool_calls;
+                    if (Array.isArray(toolCalls) && toolCalls.length && onStream) {
+                        const names = toolCalls
+                            .map(tc => tc.function?.name || tc.type || '')
+                            .filter(Boolean);
+                        if (names.length) onStream(completeResponse, data.usage || null, null, 'tool', names);
+                    }
+
+                    // Citations — url_citation annotations land near the end of the stream
+                    const annotations = delta.annotations || choice.message?.annotations || data.annotations;
+                    if (Array.isArray(annotations) && annotations.length && onStream) {
+                        onStream(completeResponse, data.usage || null, null, 'annotations', annotations);
+                    }
+
                     if (content) {
                         completeResponse += content;
                         if (onStream) onStream(completeResponse, data.usage || null, null, 'content');
