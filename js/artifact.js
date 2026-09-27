@@ -6,7 +6,7 @@
  */
 
 /** Map: language string → file extension */
-const LANG_EXT = {
+export const LANG_EXT = {
     javascript: 'js', js: 'js',
     typescript: 'ts', ts: 'ts',
     jsx: 'jsx', tsx: 'tsx', react: 'jsx',
@@ -27,7 +27,7 @@ const LANG_EXT = {
 };
 
 /** Language → MIME type for Blob downloads */
-const LANG_MIME = {
+export const LANG_MIME = {
     html: 'text/html', css: 'text/css',
     js: 'text/javascript', ts: 'text/typescript',
     jsx: 'text/javascript', tsx: 'text/typescript',
@@ -45,7 +45,7 @@ const PREVIEWABLE_LANGS = new Set([
 ]);
 
 const isReactLang = (lang) => ['jsx', 'tsx', 'react'].includes((lang || '').toLowerCase());
-const isPreviewable = (lang) => PREVIEWABLE_LANGS.has((lang || '').toLowerCase());
+export const isPreviewable = (lang) => PREVIEWABLE_LANGS.has((lang || '').toLowerCase());
 
 /** All open artifact tabs: [{id, filename, lang, code, mode}] */
 let artifacts = [];
@@ -194,7 +194,7 @@ setTimeout(function () {
 </body></html>`;
 };
 
-const buildPreviewDoc = (artifact) => {
+export const buildPreviewDoc = (artifact) => {
     const lang = (artifact.lang || '').toLowerCase();
     if (lang === 'html') return buildHtmlPreview(artifact.code);
     if (lang === 'svg') return buildSvgPreview(artifact.code);
@@ -329,6 +329,9 @@ export const openArtifact = (code, lang, suggestedFilename) => {
     artifacts.push(artifact);
     activeArtifactId = id;
 
+    // Only one side panel at a time — the Canvas closes when a file opens
+    document.dispatchEvent(new CustomEvent('canvas-open'));
+
     panel()?.classList.add('artifact-panel--open');
     document.getElementById('app')?.classList.add('app--panel-open');
 
@@ -360,6 +363,11 @@ window.addEventListener('message', (e) => {
 /** Wire up panel buttons */
 export const initArtifactPanel = () => {
     document.getElementById('artifact-btn-close')?.addEventListener('click', closePanel);
+
+    // The Canvas panel asks us to step aside when it opens
+    document.addEventListener('artifact-open', () => {
+        if (artifacts.length) closePanel();
+    });
 
     document.getElementById('artifact-btn-copy')?.addEventListener('click', () => {
         const art = artifacts.find(a => a.id === activeArtifactId);

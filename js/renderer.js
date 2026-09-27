@@ -15,6 +15,9 @@ export const escapeHTML = (str) => {
     );
 };
 
+// Set while the Canvas editor renders markdown (strips code-block buttons)
+let plainCodeMode = false;
+
 // ── Math (LaTeX) support ────────────────────────────────────────────────
 // Math is extracted BEFORE markdown parsing (so marked/DOMPurify never
 // mangle it) and re-injected as rendered KaTeX HTML AFTER sanitizing.
@@ -107,18 +110,20 @@ const extractMath = (text) => {
 };
 
 const renderMath = ({ expr, display }) => {
+    // data-math keeps the source around so the Canvas editor can round-trip it
+    const wrap = (inner) => `<span class="math-embed" data-math="${escapeHTML(expr)}" data-display="${display ? 1 : 0}">${inner}</span>`;
     if (window.katex) {
         try {
-            return window.katex.renderToString(expr, {
+            return wrap(window.katex.renderToString(expr, {
                 displayMode: display,
                 throwOnError: false,
                 strict: false,
                 maxSize: 600
-            });
+            }));
         } catch (e) { /* fall through to plain-text fallback */ }
     }
     const source = display ? `\\[ ${expr} \\]` : `\\( ${expr} \\)`;
-    return `<span class="math-unrendered">${escapeHTML(source)}</span>`;
+    return wrap(`<span class="math-unrendered">${escapeHTML(source)}</span>`);
 };
 
 if (window.marked) {
@@ -143,6 +148,10 @@ if (window.marked) {
         try {
             highlighted = window.marked.defaults.highlight(text, langStr);
         } catch (e) {}
+
+        if (plainCodeMode) {
+            return `<pre><code class="hljs language-${escapeHTML(langStr)}">${highlighted}</code></pre>`;
+        }
 
         const PREVIEWABLE = new Set(['html', 'svg', 'javascript', 'js', 'jsx', 'tsx', 'react']);
         const isPreviewable = PREVIEWABLE.has(langStr.toLowerCase());
@@ -173,14 +182,100 @@ if (window.marked) {
     window.marked.use({ renderer });
 }
 
+// ── Canvas protocol ──────────────────────────────────────────────────────
+// The model opens or updates the Canvas side panel by emitting:
+//   <canvas title="..." type="doc|code" lang="js" action="replace|append|prepend">
+//   ...content...
+//   </canvas>
+// Blocks are pulled out before markdown parsing and rendered as a chip.
+
+const CANVAS_BLOCK_RE = /<canvas\b([^>]*)>([\s\S]*?)<\/canvas\s*>/gi;
+const CANVAS_ATTR_RE = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/g;
+const CANVAS_TOKEN_RE = /%%CANVAS(\d+)%%/g;
+const DOC_LANGS = new Set(['', 'doc', 'document', 'md', 'markdown', 'text', 'plaintext', 'txt', 'rich', 'richtext']);
+
+const parseCanvasAttrs = (raw) => {
+    const attrs = {};
+    CANVAS_ATTR_RE.lastIndex = 0;
+    let m;
+    while ((m = CANVAS_ATTR_RE.exec(raw || '')) !== null) {
+        attrs[m[1].toLowerCase()] = m[2] ?? m[3] ?? m[4] ?? '';
+    }
+    return attrs;
+};
+
+/** Work out whether a canvas block holds a document or a code file */
+export const resolveCanvasType = (attrs = {}) => {
+    const t = (attrs.type || '').toLowerCase();
+    if (t === 'code' || t === 'file') return 'code';
+    if (t === 'doc' || t === 'document' || t === 'text') return 'doc';
+    const lang = (attrs.lang || attrs.language || '').toLowerCase();
+    if (lang && !DOC_LANGS.has(lang)) return 'code';
+    return 'doc';
+};
+
+/** Split canvas blocks out of a raw model reply (keeps %%CANVASn%% tokens) */
+export const parseCanvasBlocks = (text) => {
+    const blocks = [];
+    if (!text) return { text: '', blocks };
+    let out = String(text).replace(CANVAS_BLOCK_RE, (_, attrStr, content) => {
+        blocks.push({
+            attrs: parseCanvasAttrs(attrStr),
+            content: content.replace(/^\n+|\n+$/g, '')
+        });
+        return `%%CANVAS${blocks.length - 1}%%`;
+    });
+    out = out.replace(/<canvas\b[\s\S]*$/i, ''); // drop an unfinished tail
+    return { text: out, blocks };
+};
+
+/** While streaming: hide finished blocks, fade an unfinished one out of view */
+export const stripCanvasForStream = (text) => {
+    if (!text) return '';
+    const raw = String(text);
+    const opens = (raw.match(/<canvas\b/gi) || []).length;
+    const closes = (raw.match(/<\/canvas\s*>/gi) || []).length;
+    const { text: out } = parseCanvasBlocks(raw);
+    return out.replace(CANVAS_TOKEN_RE, '') + (opens > closes ? '⋯' : '');
+};
+
+const canvasChipHTML = (block) => {
+    const attrs = block.attrs || {};
+    const isCode = resolveCanvasType(attrs) === 'code';
+    const rawTitle = (attrs.title || '').trim();
+    const title = escapeHTML(rawTitle || (isCode ? 'Code' : 'Untitled document'));
+    const lang = (attrs.lang || attrs.language || '').trim().toUpperCase();
+    const meta = isCode ? `${escapeHTML(lang || 'CODE')} file · Canvas` : 'Document · Canvas';
+    const payload = encodeURIComponent(JSON.stringify({ attrs, content: block.content }));
+    return `<button type="button" class="canvas-chip" data-canvas="${payload}" title="Open in Canvas">
+        <span class="canvas-chip__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+        <span class="canvas-chip__body">
+            <span class="canvas-chip__title">${title}</span>
+            <span class="canvas-chip__meta">${meta}</span>
+        </span>
+        <span class="canvas-chip__cta">Open</span>
+    </button>`;
+};
+
+/** Render markdown without the code-block action buttons (used by the Canvas editor) */
+export const renderMarkdownPlain = (text) => {
+    plainCodeMode = true;
+    try {
+        return renderMarkdown(text);
+    } finally {
+        plainCodeMode = false;
+    }
+};
+
 export const renderMarkdown = (text) => {
     if (!text) return '';
-    const { text: withMathTokens, stash } = extractMath(text);
+    const canvasParts = parseCanvasBlocks(text);
+    const { text: withMathTokens, stash } = extractMath(canvasParts.text);
     let html = '';
     if (window.marked && window.DOMPurify) {
         html = window.DOMPurify.sanitize(window.marked.parse(withMathTokens), {
             ADD_TAGS: ['use', 'svg', 'button'],
-            ADD_ATTR: ['href', 'data-code', 'data-msg'],
+            ADD_ATTR: ['href', 'data-code', 'data-msg', 'data-canvas'],
             FORBID_TAGS: ['style', 'script']
         });
     } else {
@@ -188,6 +283,9 @@ export const renderMarkdown = (text) => {
     }
     if (stash.length) {
         html = html.replace(MATH_TOKEN_RE, (_, i) => renderMath(stash[Number(i)] || { expr: '', display: false }));
+    }
+    if (canvasParts.blocks.length) {
+        html = html.replace(CANVAS_TOKEN_RE, (_, i) => canvasChipHTML(canvasParts.blocks[Number(i)] || { attrs: {}, content: '' }));
     }
     return html;
 };

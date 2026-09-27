@@ -5,13 +5,20 @@ import { getSessionList, getSession, saveSession, deleteSession, getProjectList,
 import { getSettings, setThinkingEnabled } from './settings.js';
 import { getSelectedModelId } from './models.js';
 import { sendChatCompletion } from './api.js';
-import { buildMessageDOM, escapeHTML, renderMarkdown } from './renderer.js';
+import { buildMessageDOM, escapeHTML, renderMarkdown, parseCanvasBlocks, stripCanvasForStream } from './renderer.js';
 import { closeSidebarMobile } from './ui.js';
 import { openArtifact, initArtifactPanel } from './artifact.js';
+import {
+    initCanvasPanel, applyCanvasBlock, openCanvasFromChip, restoreCanvas,
+    isCanvasWanted, setCanvasWanted, buildCanvasContext, CANVAS_INSTRUCTION
+} from './canvas.js';
 
 let currentSession = null;
 let pendingAttachments = [];
 let activeProjectId = null; // currently selected project filter
+
+const syncCanvasToggle = () =>
+    document.getElementById('btn-canvas-toggle')?.classList.toggle('btn-tool--active', isCanvasWanted());
 
 // ── Project helpers ───────────────────────────────────────────────────────
 
@@ -221,6 +228,36 @@ export const initChat = () => {
     console.log('Chat initialized');
 
     initArtifactPanel();
+    initCanvasPanel();
+
+    // ── Canvas mode toggle ────────────────────────────────────────────────
+    document.getElementById('btn-canvas-toggle')
+        ?.addEventListener('click', () => setCanvasWanted(!isCanvasWanted()));
+    syncCanvasToggle();
+
+    // Persistence: canvas.js owns the state, we save it with the session
+    document.addEventListener('canvas-change', (e) => {
+        syncCanvasToggle();
+        if (!currentSession) return;
+        currentSession.canvas = e.detail.canvas || null;
+        currentSession.canvasWanted = !!e.detail.wanted;
+        // never create a sidebar entry for a fresh, empty chat
+        if (!currentSession.canvas && currentSession.messages.length === 0) return;
+        saveSession(currentSession);
+    });
+
+    // "Edit with AI" actions coming from the canvas panel
+    document.addEventListener('canvas-ai-edit', (e) => {
+        if (currentAbortController) return;
+        const { instruction, selection } = e.detail || {};
+        if (!instruction) return;
+        let prompt = instruction;
+        if (selection) prompt += `\n\nSelected text:\n"""\n${selection}\n"""`;
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput) chatInput.value = prompt;
+        handleSend();
+    });
+
 
     // ── Project system ────────────────────────────────────────────────────
     document.getElementById('btn-new-project')?.addEventListener('click', showNewProjectModal);
@@ -288,6 +325,13 @@ export const initChat = () => {
             const code = decodeURIComponent(openArtifactBtn.dataset.code || '');
             const lang = openArtifactBtn.dataset.lang || 'text';
             openArtifact(code, lang);
+        }
+
+        const canvasChip = e.target.closest('.canvas-chip');
+        if (canvasChip) {
+            try {
+                openCanvasFromChip(JSON.parse(decodeURIComponent(canvasChip.dataset.canvas || '')));
+            } catch (err) { /* malformed chip — ignore */ }
         }
 
         const copyCodeBtn = e.target.closest('.btn-copy-code');
@@ -374,6 +418,8 @@ export const createNewChat = () => {
         messages: [],
         projectId: activeProjectId || null
     };
+    restoreCanvas(null, false);
+    syncCanvasToggle();
     renderChatMessages();
     renderSidebarList();
     const input = document.getElementById('chat-input');
@@ -384,6 +430,8 @@ const loadSessionUI = (id) => {
     const session = getSession(id);
     if (session) {
         currentSession = session;
+        restoreCanvas(session.canvas || null, session.canvasWanted === true);
+        syncCanvasToggle();
         renderChatMessages();
         renderSidebarList();
         closeSidebarMobile(); // close sidebar on mobile after selecting
@@ -733,7 +781,7 @@ const triggerCompletion = async () => {
 
         if (hasStartedContent) {
             // Plain text during stream — no markdown parsing cost
-            liveTextEl.textContent = streamedContent;
+            liveTextEl.textContent = stripCanvasForStream(streamedContent);
             cursorEl.style.display = '';
         } else if (!reasoningContent) {
             liveTextEl.innerHTML = '<div class="thinking-indicator"><span></span><span></span><span></span></div>';
@@ -771,13 +819,17 @@ const triggerCompletion = async () => {
             payload.reasoning = { enabled: true };
         }
 
-        if (settings.systemPrompt || currentSession.projectId) {
-            const projectPrompt = currentSession.projectId
-                ? (getProject(currentSession.projectId)?.systemPrompt || '')
-                : '';
-            const combined = [projectPrompt, settings.systemPrompt].filter(Boolean).join('\n\n');
-            if (combined) payload.messages.unshift({ role: 'system', content: combined });
+        const systemParts = [];
+        if (currentSession.projectId) {
+            systemParts.push(getProject(currentSession.projectId)?.systemPrompt || '');
         }
+        if (settings.systemPrompt) systemParts.push(settings.systemPrompt);
+        if (isCanvasWanted()) {
+            systemParts.push(CANVAS_INSTRUCTION);
+            systemParts.push(buildCanvasContext());
+        }
+        const combined = systemParts.filter(Boolean).join('\n\n');
+        if (combined) payload.messages.unshift({ role: 'system', content: combined });
 
         const response = await sendChatCompletion(payload, (chunk, usage, reasoningChunk, type) => {
             if (type === 'reasoning') {
@@ -860,4 +912,8 @@ const triggerCompletion = async () => {
 
         scrollToBottom();
     }
+
+    // Canvas protocol: open / update the panel if the model emitted a block
+    const canvasBlocks = parseCanvasBlocks(streamedContent).blocks;
+    canvasBlocks.forEach(applyCanvasBlock);
 };

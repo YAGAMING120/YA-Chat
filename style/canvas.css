@@ -1,0 +1,543 @@
+/* ════════════════════════════════════════════════════════════
+   CANVAS PANEL (ChatGPT-style editable document / code)
+   ════════════════════════════════════════════════════════════ */
+
+.app--canvas-open .main-content {
+    margin-right: 480px;
+}
+
+.canvas-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 480px;
+    height: 100vh;
+    background-color: var(--bg-surface);
+    border-left: 1px solid var(--border-medium);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 9;
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.4);
+}
+
+.canvas-panel--open {
+    transform: translateX(0);
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+
+.canvas-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem 0.4rem 0.85rem;
+    min-height: 46px;
+    flex-shrink: 0;
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.canvas-panel__title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.canvas-panel__icon {
+    display: flex;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+
+.canvas-panel__title {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-main);
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: inherit;
+    padding: 0.3rem 0.45rem;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+    text-overflow: ellipsis;
+}
+.canvas-panel__title:hover { border-color: var(--border-medium); }
+.canvas-panel__title:focus {
+    border-color: var(--border-focus);
+    background: var(--bg-input);
+}
+
+.canvas-panel__badge {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    padding: 0.18rem 0.42rem;
+    border-radius: 5px;
+    background: rgba(249, 115, 22, 0.14);
+    color: var(--text-primary);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.canvas-panel__badge--code {
+    background: rgba(96, 165, 250, 0.14);
+    color: #60a5fa;
+    border-color: rgba(96, 165, 250, 0.3);
+    font-family: var(--font-mono);
+}
+
+.canvas-panel__actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.artifact-btn--active {
+    background: rgba(249, 115, 22, 0.16) !important;
+    color: var(--text-primary) !important;
+    border-color: rgba(249, 115, 22, 0.4) !important;
+}
+
+/* ── Edit-with-AI dropdown ──────────────────────────────────── */
+
+.canvas-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 210px;
+    padding: 4px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 10px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+    z-index: 40;
+}
+
+.canvas-menu__item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.48rem 0.65rem;
+    border: none;
+    background: none;
+    color: var(--text-main);
+    font-size: 0.78rem;
+    font-family: inherit;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.canvas-menu__item:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+
+/* ── Formatting toolbar ─────────────────────────────────────── */
+
+.canvas-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0.3rem 0.6rem;
+    flex-shrink: 0;
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-subtle);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.canvas-toolbar::-webkit-scrollbar { display: none; }
+
+.canvas-toolbar button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 0.35rem;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    font-family: inherit;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.canvas-toolbar button:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-main);
+}
+.canvas-toolbar__sep {
+    width: 1px;
+    height: 16px;
+    background: var(--border-medium);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+/* ── Body ───────────────────────────────────────────────────── */
+
+.canvas-panel__body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Empty state */
+.canvas-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.6rem;
+    padding: 2rem 1.75rem;
+    color: var(--text-dim);
+}
+.canvas-empty svg { color: var(--text-primary); opacity: 0.85; }
+.canvas-empty h3 {
+    margin: 0.3rem 0 0;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+.canvas-empty p {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    max-width: 30ch;
+}
+
+/* Rich-text editor */
+.canvas-doc {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1.35rem 1.5rem 5rem;
+    font-size: 0.92rem;
+    line-height: 1.75;
+    color: var(--text-main);
+    outline: none;
+    caret-color: var(--text-primary);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-medium) transparent;
+    word-break: break-word;
+}
+.canvas-doc::-webkit-scrollbar { width: 6px; }
+.canvas-doc::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 3px; }
+.canvas-doc:empty::before {
+    content: "Start writing…";
+    color: var(--text-dim);
+}
+
+.canvas-doc > *:first-child { margin-top: 0; }
+.canvas-doc > *:last-child { margin-bottom: 0; }
+.canvas-doc p { margin: 0.55em 0; }
+.canvas-doc h1 { font-size: 1.5rem; line-height: 1.3; margin: 1.1em 0 0.5em; }
+.canvas-doc h2 { font-size: 1.25rem; line-height: 1.35; margin: 1em 0 0.45em; }
+.canvas-doc h3 { font-size: 1.08rem; margin: 0.9em 0 0.4em; }
+.canvas-doc h4, .canvas-doc h5, .canvas-doc h6 { font-size: 1rem; margin: 0.8em 0 0.4em; }
+.canvas-doc ul, .canvas-doc ol { margin: 0.55em 0; padding-left: 1.4em; }
+.canvas-doc li { margin: 0.22em 0; }
+.canvas-doc a { color: var(--text-primary); }
+.canvas-doc blockquote {
+    margin: 0.7em 0;
+    padding: 0.15em 0 0.15em 0.85em;
+    border-left: 3px solid var(--text-primary);
+    color: var(--text-muted);
+}
+.canvas-doc code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+}
+.canvas-doc pre {
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+    overflow-x: auto;
+    margin: 0.7em 0;
+    line-height: 1.6;
+}
+.canvas-doc pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.82rem;
+}
+.canvas-doc hr { border: none; border-top: 1px solid var(--border-medium); margin: 1.2em 0; }
+.canvas-doc img { max-width: 100%; border-radius: 8px; }
+.canvas-doc table { border-collapse: collapse; width: 100%; margin: 0.7em 0; font-size: 0.85rem; }
+.canvas-doc th, .canvas-doc td { border: 1px solid var(--border-medium); padding: 0.35rem 0.5rem; text-align: left; }
+.canvas-doc th { background: var(--bg-sidebar); }
+.canvas-doc ::selection { background: rgba(249, 115, 22, 0.3); }
+
+/* Markdown source view */
+.canvas-source {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    background: transparent;
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.7;
+    padding: 1.25rem 1.25rem 4rem;
+    caret-color: var(--text-primary);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-medium) transparent;
+}
+.canvas-source::-webkit-scrollbar { width: 6px; }
+.canvas-source::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 3px; }
+
+/* Code editor (highlighted layer under a transparent textarea) */
+.canvas-code {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+.canvas-code__hl,
+.canvas-code__input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 1.25rem 1.25rem 4rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 400;
+    line-height: 1.65;
+    letter-spacing: normal;
+    tab-size: 4;
+    white-space: pre;
+    overflow: auto;
+    border: 0;
+    border-radius: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-medium) transparent;
+}
+.canvas-code__hl::-webkit-scrollbar,
+.canvas-code__input::-webkit-scrollbar { width: 6px; height: 6px; }
+.canvas-code__hl::-webkit-scrollbar-thumb,
+.canvas-code__input::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 3px; }
+.canvas-code__hl {
+    pointer-events: none;
+    background: transparent;
+    color: var(--text-main);
+}
+.canvas-code__hl code { background: transparent; }
+.canvas-code__input {
+    background: transparent;
+    color: transparent;
+    caret-color: var(--text-primary);
+    resize: none;
+    outline: none;
+    -webkit-text-fill-color: transparent;
+}
+.canvas-code__input::selection {
+    background: rgba(249, 115, 22, 0.32);
+    -webkit-text-fill-color: transparent;
+}
+
+/* Live preview */
+.canvas-preview__frame {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    border: none;
+    background: #fff;
+}
+.canvas-preview__error {
+    flex-shrink: 0;
+    max-height: 35%;
+    overflow-y: auto;
+    background: rgba(239, 68, 68, 0.08);
+    border-top: 1px solid rgba(239, 68, 68, 0.35);
+    color: #f87171;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    padding: 0.6rem 0.85rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+
+.canvas-panel__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    min-height: 38px;
+    flex-shrink: 0;
+    background: var(--bg-sidebar);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.canvas-stats {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.canvas-viewtoggle {
+    display: flex;
+    align-items: center;
+    background: var(--bg-input);
+    border: 1px solid var(--border-medium);
+    border-radius: 7px;
+    padding: 2px;
+    gap: 2px;
+    flex-shrink: 0;
+}
+.canvas-viewtoggle__btn {
+    padding: 0.25rem 0.6rem;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.canvas-viewtoggle__btn:hover { color: var(--text-main); }
+.canvas-viewtoggle__btn.is-active {
+    background: var(--gradient-primary);
+    color: #fff;
+    box-shadow: 0 1px 6px rgba(249, 115, 22, 0.35);
+}
+
+/* ── Selection toolbar ──────────────────────────────────────── */
+
+.canvas-sel-toolbar {
+    position: fixed;
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 9px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+.canvas-sel-toolbar button {
+    padding: 0.3rem 0.55rem;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-main);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.canvas-sel-toolbar button:hover {
+    background: rgba(249, 115, 22, 0.16);
+    color: var(--text-primary);
+}
+
+/* ── Canvas chip in chat messages ───────────────────────────── */
+
+.canvas-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    margin: 0.6rem 0 0.4rem;
+    padding: 0.6rem 0.75rem;
+    background: linear-gradient(180deg, rgba(249, 115, 22, 0.08), rgba(249, 115, 22, 0.03));
+    border: 1px solid rgba(249, 115, 22, 0.28);
+    border-radius: 11px;
+    color: var(--text-main);
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, background 0.15s;
+}
+.canvas-chip:hover {
+    border-color: rgba(249, 115, 22, 0.55);
+    background: linear-gradient(180deg, rgba(249, 115, 22, 0.14), rgba(249, 115, 22, 0.06));
+    transform: translateY(-1px);
+}
+
+.canvas-chip__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: rgba(249, 115, 22, 0.16);
+    color: var(--text-primary);
+}
+
+.canvas-chip__body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    flex: 1;
+}
+.canvas-chip__title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.canvas-chip__meta {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+.canvas-chip__cta {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding: 0.22rem 0.55rem;
+    border: 1px solid rgba(249, 115, 22, 0.35);
+    border-radius: 6px;
+    background: rgba(249, 115, 22, 0.12);
+}
+
+/* ── Mobile ─────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .canvas-panel { width: 100vw; }
+    .app--canvas-open .main-content { margin-right: 0; }
+    .canvas-panel__actions .artifact-btn:not(#canvas-btn-ask):not(#canvas-btn-close) { display: none; }
+}

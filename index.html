@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="style/sidebar.css">
     <link rel="stylesheet" href="style/chat.css">
     <link rel="stylesheet" href="style/modal.css">
+    <link rel="stylesheet" href="style/canvas.css">
     
     <!-- External Libraries (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -108,6 +109,10 @@
                             <button class="btn-tool" id="btn-system-prompt" title="System Prompt">
                                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
                             </button>
+                            <button class="btn-tool" id="btn-canvas-toggle" title="Canvas — get a reply in an editable document">
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg>
+                                <span class="btn-tool__label">Canvas</span>
+                            </button>
                             <div class="divider-vertical"></div>
                             <span class="shortcut-hint">Shift+Enter for newline</span>
                         </div>
@@ -169,6 +174,83 @@
                 </div>
             </div>
         </aside>
+        <!-- Canvas Panel -->
+        <aside class="canvas-panel" id="canvas-panel">
+            <div class="canvas-panel__header">
+                <div class="canvas-panel__title-wrap">
+                    <span class="canvas-panel__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg>
+                    </span>
+                    <input class="canvas-panel__title" id="canvas-title-input" placeholder="Untitled" spellcheck="false" autocomplete="off">
+                    <span class="canvas-panel__badge" id="canvas-badge">Canvas</span>
+                </div>
+                <div class="canvas-panel__actions">
+                    <button class="artifact-btn" id="canvas-btn-ask" title="Ask AI to edit the canvas">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"></path><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z"></path></svg>
+                        Edit with AI
+                    </button>
+                    <button class="artifact-btn artifact-btn--icon" id="canvas-btn-copy" title="Copy content">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+                    </button>
+                    <button class="artifact-btn artifact-btn--icon" id="canvas-btn-download" title="Download">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    </button>
+                    <button class="artifact-btn artifact-btn--icon" id="canvas-btn-close" title="Close canvas">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                    <div class="canvas-menu" id="canvas-ask-menu" style="display:none;"></div>
+                </div>
+            </div>
+
+            <div class="canvas-toolbar" id="canvas-toolbar" style="display:none;">
+                <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+                <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+                <button type="button" data-cmd="formatBlock" data-val="h1" title="Heading 1">H1</button>
+                <button type="button" data-cmd="formatBlock" data-val="h2" title="Heading 2">H2</button>
+                <button type="button" data-cmd="formatBlock" data-val="blockquote" title="Quote">&#10077;</button>
+                <button type="button" data-cmd="insertUnorderedList" title="Bulleted list">&#8226;</button>
+                <button type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button>
+                <button type="button" data-cmd="inlineCode" title="Inline code">&lt;/&gt;</button>
+                <button type="button" data-cmd="createLink" title="Insert link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"></path></svg>
+                </button>
+                <span class="canvas-toolbar__sep"></span>
+                <button type="button" data-cmd="undo" title="Undo">&#8630;</button>
+                <button type="button" data-cmd="redo" title="Redo">&#8631;</button>
+            </div>
+
+            <div class="canvas-panel__body" id="canvas-body">
+                <div class="canvas-empty" id="canvas-empty" style="display:none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="34" height="34"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg>
+                    <h3>Canvas is on</h3>
+                    <p>Ask YA Chat to draft, write, or edit something and it opens here — then keep refining it together.</p>
+                </div>
+                <div class="canvas-doc" id="canvas-doc" contenteditable="true" spellcheck="true" style="display:none;"></div>
+                <textarea class="canvas-source" id="canvas-source" spellcheck="false" style="display:none;"></textarea>
+                <div class="canvas-code" id="canvas-code" style="display:none;">
+                    <pre class="canvas-code__hl" aria-hidden="true"><code id="canvas-code-hl"></code></pre>
+                    <textarea class="canvas-code__input" id="canvas-code-input" spellcheck="false" wrap="off"></textarea>
+                </div>
+                <iframe class="canvas-preview__frame" id="canvas-preview-frame" title="Canvas preview" sandbox="allow-scripts allow-modals allow-popups allow-forms allow-pointer-lock" style="display:none;"></iframe>
+                <div class="canvas-preview__error" id="canvas-preview-error" style="display:none;"></div>
+            </div>
+
+            <div class="canvas-panel__footer">
+                <span class="canvas-stats" id="canvas-stats"></span>
+                <div class="canvas-viewtoggle" id="canvas-viewtoggle" style="display:none;">
+                    <button type="button" class="canvas-viewtoggle__btn is-active" id="canvas-btn-view-main">Write</button>
+                    <button type="button" class="canvas-viewtoggle__btn" id="canvas-btn-view-alt">Source</button>
+                </div>
+            </div>
+
+            <div class="canvas-sel-toolbar" id="canvas-sel-toolbar" style="display:none;">
+                <button type="button" data-sel="shorter">Shorter</button>
+                <button type="button" data-sel="longer">Longer</button>
+                <button type="button" data-sel="grammar">Fix</button>
+                <button type="button" data-sel="improve">Rewrite</button>
+            </div>
+        </aside>
+
         
         <!-- Modals -->
         <div class="modal-overlay" id="modal-settings" style="display: none;">
