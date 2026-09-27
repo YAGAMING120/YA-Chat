@@ -902,3 +902,37 @@
     color: var(--text-dim);
     margin-top: 2px;
 }
+
+/* ── Math (KaTeX) rendering ─────────────────────────────────────────────── */
+.chat__content .katex {
+    color: inherit;
+    font-size: 1.05em;
+}
+.chat__content .katex-display {
+    margin: 1rem 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0;
+}
+.chat__content .katex-display > .katex {
+    text-align: left;
+}
+.chat__content .katex-error {
+    color: var(--bg-danger) !important;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9em;
+}
+.chat__content .math-unrendered {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    color: var(--text-dim);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 4px;
+    padding: 1px 5px;
+    word-break: break-word;
+}
+.chat__content .katex-display .math-unrendered {
+    display: block;
+    text-align: center;
+}

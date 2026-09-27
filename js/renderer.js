@@ -15,6 +15,112 @@ export const escapeHTML = (str) => {
     );
 };
 
+// ── Math (LaTeX) support ────────────────────────────────────────────────
+// Math is extracted BEFORE markdown parsing (so marked/DOMPurify never
+// mangle it) and re-injected as rendered KaTeX HTML AFTER sanitizing.
+
+const MATH_TOKEN_RE = /%%MATH(\d+)%%/g;
+const BLOCK_MATH_RE = /(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g;
+const INLINE_MATH_RE = /\$([^$\n]+?)\$/g;
+const CODE_SEGMENT_RE = /(`{3,}[\s\S]*?(?:`{3,}|$)|`+[^`\n]*?`+|\]\([^)\n]*\)|<\/?[a-zA-Z][^>\n]*>)/g;
+
+const PROSE_LATEX_FIXES = [
+    [/\{,\}/g, ','],
+    [/\\times\b/g, '×'],
+    [/\\div\b/g, '÷'],
+    [/\\cdot\b/g, '·'],
+    [/\\pm\b/g, '±'],
+    [/\\leq?\b/g, '≤'],
+    [/\\geq?\b/g, '≥'],
+    [/\\neq?\b/g, '≠'],
+    [/\\approx\b/g, '≈'],
+    [/\\rightarrow\b/g, '→'],
+    [/\\leftarrow\b/g, '←'],
+    [/\\text\{([^{}]*)\}/g, '$1'],
+    [/\\mathrm\{([^{}]*)\}/g, '$1'],
+    [/\\%/g, '%'],
+    [/\\,/g, ' '],
+    [/\\\$/g, '$']
+];
+
+const stripMathDelims = (raw) => {
+    if (raw.startsWith('$$')) return raw.slice(2, -2).trim();
+    if (raw.startsWith('\\[') || raw.startsWith('\\(')) return raw.slice(2, -2).trim();
+    if (raw.startsWith('$')) return raw.slice(1, -1).trim();
+    return raw;
+};
+
+const isInlineMathCandidate = (content) => {
+    if (!content || content !== content.trim()) return false;
+    if (/[{}\\_^]/.test(content)) return true;   // contains LaTeX syntax
+    return /^[a-zA-Z]/.test(content);            // "$x$" ok, "$100$" stays a price
+};
+
+const applyProseFixes = (text) => {
+    let out = text;
+    for (const [re, replacement] of PROSE_LATEX_FIXES) {
+        out = out.replace(re, replacement);
+    }
+    return out;
+};
+
+const extractMath = (text) => {
+    const stash = [];
+    const stashMath = (raw, display) => {
+        stash.push({ expr: stripMathDelims(raw), display });
+        return `%%MATH${stash.length - 1}%%`;
+    };
+
+    const segments = [];
+    let cursor = 0;
+    let match;
+    CODE_SEGMENT_RE.lastIndex = 0;
+    while ((match = CODE_SEGMENT_RE.exec(text)) !== null) {
+        if (match.index > cursor) segments.push({ verbatim: false, text: text.slice(cursor, match.index) });
+        segments.push({ verbatim: true, text: match[0] });
+        cursor = match.index + match[0].length;
+    }
+    if (cursor < text.length) segments.push({ verbatim: false, text: text.slice(cursor) });
+
+    const output = segments.map(seg => {
+        if (seg.verbatim) return seg.text;
+
+        let t = seg.text;
+        BLOCK_MATH_RE.lastIndex = 0;
+        t = t.replace(BLOCK_MATH_RE, raw => stashMath(raw, /^(\$\$|\\\[)/.test(raw)));
+
+        let out = '';
+        let last = 0;
+        INLINE_MATH_RE.lastIndex = 0;
+        while ((match = INLINE_MATH_RE.exec(t)) !== null) {
+            if (!isInlineMathCandidate(match[1])) continue;
+            out += t.slice(last, match.index) + stashMath(match[0], false);
+            last = match.index + match[0].length;
+            INLINE_MATH_RE.lastIndex = last;
+        }
+        out += t.slice(last);
+
+        return applyProseFixes(out);
+    }).join('');
+
+    return { text: output, stash };
+};
+
+const renderMath = ({ expr, display }) => {
+    if (window.katex) {
+        try {
+            return window.katex.renderToString(expr, {
+                displayMode: display,
+                throwOnError: false,
+                strict: false,
+                maxSize: 600
+            });
+        } catch (e) { /* fall through to plain-text fallback */ }
+    }
+    const source = display ? `\\[ ${expr} \\]` : `\\( ${expr} \\)`;
+    return `<span class="math-unrendered">${escapeHTML(source)}</span>`;
+};
+
 if (window.marked) {
     window.marked.setOptions({
         highlight: function(code, lang) {
@@ -69,17 +175,21 @@ if (window.marked) {
 
 export const renderMarkdown = (text) => {
     if (!text) return '';
-    let rawHtml = '';
+    const { text: withMathTokens, stash } = extractMath(text);
+    let html = '';
     if (window.marked && window.DOMPurify) {
-        rawHtml = window.marked.parse(text);
-        return window.DOMPurify.sanitize(rawHtml, {
+        html = window.DOMPurify.sanitize(window.marked.parse(withMathTokens), {
             ADD_TAGS: ['use', 'svg', 'button'],
             ADD_ATTR: ['href', 'data-code', 'data-msg'],
             FORBID_TAGS: ['style', 'script']
         });
     } else {
-        return `<p>${escapeHTML(text).replace(/\n/g, '<br/>')}</p>`;
+        html = `<p>${escapeHTML(withMathTokens).replace(/\n/g, '<br/>')}</p>`;
     }
+    if (stash.length) {
+        html = html.replace(MATH_TOKEN_RE, (_, i) => renderMath(stash[Number(i)] || { expr: '', display: false }));
+    }
+    return html;
 };
 
 export const buildMessageDOM = (role, content, attachments = []) => {
