@@ -476,7 +476,7 @@ export function CanvasPanel(): JSX.Element {
           </svg>
           <h3>Canvas is on</h3>
           <p>
-            Ask YA Chat to draft, write, or edit something and it opens here — then keep refining it
+            Ask Blaze Chat to draft, write, or edit something and it opens here — then keep refining it
             together.
           </p>
         </div>

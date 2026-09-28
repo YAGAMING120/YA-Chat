@@ -1,6 +1,6 @@
 /*
  * Design tokens — ported verbatim from style/main.css so the React app keeps
- * the exact YA Chat visual identity (dark/light via [data-theme]).
+ * the exact Blaze Chat visual identity (dark/light via [data-theme]).
  */
 :root {
   --bg-app: #070604;

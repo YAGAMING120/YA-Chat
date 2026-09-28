@@ -2,16 +2,26 @@ import { cn } from '../../lib/cn';
 import { Icon } from '../common/Icon';
 import { ConfirmButton } from '../common/InlineConfirm';
 import { deleteSessionById, selectSession, useChatState } from '../../stores/chatStore';
+import { closeSidebarSearch, useUiState } from '../../stores/uiStore';
 
 export function SessionList(): JSX.Element {
   const { sessionList, projects, activeProjectId, activeSession } = useChatState();
+  const { sidebarSearch } = useUiState();
 
-  const visible = sessionList
-    .filter((s) => (activeProjectId ? s.projectId === activeProjectId : !s.projectId))
-    .sort((a, b) => b.timestamp - a.timestamp);
+  const query = (sidebarSearch ?? '').trim().toLowerCase();
+  const visible = (query
+    ? sessionList.filter((s) => (s.title || 'New Chat').toLowerCase().includes(query))
+    : sessionList.filter((s) =>
+        activeProjectId ? s.projectId === activeProjectId : !s.projectId
+      )
+  ).sort((a, b) => b.timestamp - a.timestamp);
 
   const project = projects.find((p) => p.id === activeProjectId);
-  const label = activeProjectId ? `${project?.name || 'Project'} Chats` : 'Recent Chats';
+  const label = query
+    ? 'Search Results'
+    : activeProjectId
+      ? `${project?.name || 'Project'} Chats`
+      : 'Recent Chats';
 
   return (
     <div id="session-list" className="sidebar__sessions">
@@ -26,6 +36,7 @@ export function SessionList(): JSX.Element {
           onClick={(e) => {
             if (!(e.target as HTMLElement).closest('.btn-delete-session')) {
               selectSession(session.id);
+              if (query) closeSidebarSearch();
             }
           }}
         >

@@ -102,7 +102,7 @@ function AssistantBubble({
   return (
     <div className="chat__message--ai">
       <div className="chat__avatar--ai">
-        <img src={logoUrl} alt="YA Chat" className="ai-avatar-img" />
+        <img src={logoUrl} alt="Blaze Chat" className="ai-avatar-img" />
       </div>
       <div className="chat__bubble--ai">
         <div className="chat__content">

@@ -243,7 +243,7 @@ export function Composer(): JSX.Element {
           id="chat-input"
           ref={textareaRef}
           className="chat-input"
-          placeholder="Ask YA Chat anything..."
+          placeholder="Ask Blaze Chat anything..."
           rows={1}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -379,7 +379,7 @@ export function Composer(): JSX.Element {
         </button>
         {toolsOpen && <ToolsPopover />}
       </div>
-      <div className="app-footer">YA Chat • Powered by OpenRouter • v2.0.0</div>
+      <div className="app-footer">Blaze Chat • Powered by OpenRouter • v2.0.0</div>
     </div>
   );
 }

@@ -11,18 +11,19 @@ import { ModelsModal } from '../models/ModelsModal';
 import { TtsModal } from '../tts/TtsModal';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { closeSettings, useUiState } from '../../stores/uiStore';
+import { cn } from '../../lib/cn';
 
 export function AppShell({ children }: { children: ReactNode }): JSX.Element {
   useKeyboardShortcuts();
-  const { settingsOpen, sidePanel } = useUiState();
+  const { settingsOpen, sidePanel, sidebarCollapsed } = useUiState();
 
   // One visible side panel at a time (they share the right-hand rail).
-  const appClass =
-    sidePanel === 'artifact'
-      ? 'app-container app--panel-open'
-      : sidePanel === 'canvas'
-        ? 'app-container app--canvas-open'
-        : 'app-container';
+  const appClass = cn(
+    'app-container',
+    sidePanel === 'artifact' && 'app--panel-open',
+    sidePanel === 'canvas' && 'app--canvas-open',
+    sidebarCollapsed && 'app--sidebar-collapsed'
+  );
 
   return (
     <>

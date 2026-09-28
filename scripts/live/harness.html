@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>Phase 12 harness</title></head>
 <body>
@@ -131,6 +131,26 @@ async function run() {
   click(q('#btn-add-tools'));
   await sleep(100);
   log('clicking + again shows tools', !!q('#btn-tools'));
+
+  // sidebar header: search + collapse ("hide sidebar")
+  log('sidebar header brand', !!q('.sidebar__header') && doc().body.innerHTML.includes('Blaze Chat'));
+  click(q('#btn-sidebar-search'));
+  await sleep(100);
+  log('sidebar search opens', !!q('#sidebar-search-input'));
+  const si = q('#sidebar-search-input');
+  if (si) setInput(si, 'zzz-no-match');
+  await sleep(100);
+  const st = q('.sidebar__sessions-title');
+  log('search switches to results view', !!st && st.textContent === 'Search Results');
+  esc();
+  await sleep(100);
+  log('Escape closes sidebar search', !q('#sidebar-search-input'));
+  click(q('#btn-sidebar-collapse'));
+  await sleep(150);
+  log('collapse hides sidebar', appCls().includes('app--sidebar-collapsed'));
+  click(q('#btn-sidebar-toggle'));
+  await sleep(150);
+  log('header toggle restores sidebar', !appCls().includes('app--sidebar-collapsed'));
 
   document.getElementById('results').textContent = results.join('\n');
   document.title = results.some(r => r.startsWith('FAIL')) ? 'HARNESS FAIL' : 'HARNESS PASS';

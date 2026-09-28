@@ -1,4 +1,4 @@
-# YA Chat
+# Blaze Chat
 
 A streaming chat UI for [OpenRouter](https://openrouter.ai) — hundreds of models behind one OpenAI-compatible API.
 

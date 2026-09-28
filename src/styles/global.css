@@ -430,6 +430,71 @@ body {
   transition: transform 0.3s ease;
 }
 .sidebar__top { padding: 1rem; }
+
+/* ChatGPT-style sidebar header: brand + search + collapse toggle */
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.875rem 0.875rem 0.25rem;
+}
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.sidebar__logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.sidebar__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+.sidebar__header-actions .btn-icon {
+  padding: 0.4rem;
+  border-radius: 6px;
+}
+.sidebar__header-actions .btn-icon:hover,
+.sidebar__header-actions .btn-icon--active {
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--text-primary);
+}
+.sidebar__search {
+  padding: 0.25rem 0.875rem 0.5rem;
+}
+.sidebar__search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-input, #17171b);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  color: var(--text-main);
+  font-size: 0.8125rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.sidebar__search-input:focus {
+  border-color: rgba(249, 115, 22, 0.55);
+}
+.sidebar__search-input::placeholder {
+  color: var(--text-dim);
+}
 .btn-new-chat {
   width: 100%;
   display: flex;
@@ -630,6 +695,25 @@ body {
   /* On mobile, always show delete actions (no hover needed) */
   .session-item__actions { opacity: 1; }
   .project-item__actions { opacity: 1; }
+}
+
+/* Desktop sidebar collapse (the panel toggle hides the sidebar) */
+@media (min-width: 769px) {
+  .sidebar {
+    transition:
+      margin-left 0.3s ease,
+      opacity 0.25s ease,
+      transform 0.3s ease;
+  }
+  .app--sidebar-collapsed .sidebar {
+    margin-left: -264px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* When the sidebar is hidden, the header hamburger reappears to restore it */
+  .app--sidebar-collapsed .btn-sidebar-toggle {
+    display: block;
+  }
 }
 
 /* -- Header (ported from style/chat.css) ---------------------------------- */

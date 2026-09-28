@@ -28,7 +28,7 @@ export default async function handler(req, res) {
       'Content-Type': 'application/json',
       // App attribution required by OpenRouter for ranked/analytics apps
       'HTTP-Referer': req.headers.origin || `https://${req.headers.host || 'localhost'}`,
-      'X-Title': 'YA Chat'
+      'X-Title': 'Blaze Chat'
     };
     if (req.headers.authorization) {
       headers['Authorization'] = req.headers.authorization;

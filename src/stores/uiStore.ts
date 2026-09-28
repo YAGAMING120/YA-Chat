@@ -19,6 +19,10 @@ export interface ToastItem {
 export interface UiState {
   /** Mobile sidebar drawer */
   sidebarOpen: boolean;
+  /** Desktop sidebar collapsed (hidden) via the ChatGPT-style panel toggle. */
+  sidebarCollapsed: boolean;
+  /** Sidebar session search: null = closed, string = active query. */
+  sidebarSearch: string | null;
   settingsOpen: boolean;
   modelsOpen: boolean;
   ttsOpen: boolean;
@@ -39,8 +43,12 @@ export interface UiState {
   composerFocusTick: number;
 }
 
+const SIDEBAR_COLLAPSED_KEY = 'or_sidebar_collapsed';
+
 export const uiStore = createStore<UiState>({
   sidebarOpen: false,
+  sidebarCollapsed: readSidebarCollapsed(),
+  sidebarSearch: null,
   settingsOpen: false,
   modelsOpen: false,
   ttsOpen: false,
@@ -56,12 +64,55 @@ export const uiStore = createStore<UiState>({
 
 export const useUiState = (): UiState => useStore(uiStore);
 
-/* ── Sidebar (mobile drawer) ─────────────────────────────────────────── */
+/* ── Sidebar (mobile drawer + desktop collapse) ───────────────────────── */
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return (
+      typeof localStorage !== 'undefined' &&
+      localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function persistSidebarCollapsed(collapsed: boolean): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+  } catch {
+    /* private mode */
+  }
+}
 
 export const openSidebar = (): void => uiStore.set({ sidebarOpen: true });
 export const closeSidebar = (): void => uiStore.set({ sidebarOpen: false });
+/** Mobile: open/close the drawer. Desktop: collapse/expand the sidebar. */
 export const toggleSidebar = (): void =>
-  uiStore.set((s) => ({ sidebarOpen: !s.sidebarOpen }));
+  uiStore.set((s) => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    if (isMobile) return { sidebarOpen: !s.sidebarOpen };
+    const sidebarCollapsed = !s.sidebarCollapsed;
+    persistSidebarCollapsed(sidebarCollapsed);
+    return { sidebarCollapsed };
+  });
+export const collapseSidebar = (): void =>
+  uiStore.set(() => {
+    persistSidebarCollapsed(true);
+    return { sidebarCollapsed: true };
+  });
+export const expandSidebar = (): void =>
+  uiStore.set(() => {
+    persistSidebarCollapsed(false);
+    return { sidebarCollapsed: false };
+  });
+
+/* ── Sidebar search ───────────────────────────────────────────────────── */
+
+export const openSidebarSearch = (): void => uiStore.set({ sidebarSearch: '' });
+export const closeSidebarSearch = (): void => uiStore.set({ sidebarSearch: null });
+export const setSidebarSearch = (query: string): void => uiStore.set({ sidebarSearch: query });
 
 /* ── Modals ──────────────────────────────────────────────────────────── */
 
@@ -90,6 +141,7 @@ export const setSidePanel = (next: SidePanelKind): void => uiStore.set({ sidePan
 export const closeAllOverlays = (): void =>
   uiStore.set({
     sidebarOpen: false,
+    sidebarSearch: null,
     settingsOpen: false,
     modelsOpen: false,
     ttsOpen: false,
