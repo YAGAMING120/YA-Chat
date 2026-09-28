@@ -154,7 +154,9 @@ async function main(): Promise<void> {
     'utf8'
   );
   check('button keeps legacy id', composerSrc.includes('id="btn-system-prompt"'));
-  check('button opens settings (legacy left it inert)', composerSrc.includes('onClick={openSettings}'));
+  const sysBtnIdx = composerSrc.indexOf('id="btn-system-prompt"');
+  const sysBtnBlock = sysBtnIdx >= 0 ? composerSrc.slice(sysBtnIdx, sysBtnIdx + 400) : '';
+  check('button opens settings (legacy left it inert)', sysBtnBlock.includes('openSettings()'));
 
   console.log(failures === 0 ? '\nALL PASSED' : `\n${failures} FAILED`);
   process.exit(failures === 0 ? 0 : 1);

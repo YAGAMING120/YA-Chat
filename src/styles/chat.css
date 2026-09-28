@@ -777,7 +777,7 @@
 .btn-tool:active {
     transform: scale(0.95);
 }
-/* "+" toggle: rotates into a close mark while tools are shown */
+/* "+" toggle: rotates into a close mark while the menu is shown */
 .btn-tool--plus {
     position: relative;
 }
@@ -796,6 +796,45 @@
     border-radius: 50%;
     background: #f97316;
     pointer-events: none;
+}
+/* Vertical tools menu revealed by the "+" button */
+.tools-menu {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    z-index: 95;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 190px;
+    max-width: min(240px, calc(100vw - 2rem));
+    padding: 6px;
+    background: var(--bg-input, #17171b);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    animation: tools-menu-in 0.12s ease;
+}
+@keyframes tools-menu-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+}
+.tools-menu .btn-tool {
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+}
+.tools-menu .btn-tool__label {
+    font-size: 13px;
+}
+.divider-horizontal {
+    height: 1px;
+    background-color: var(--border-medium);
+    margin: 4px 0;
+}
+.tools-menu .shortcut-hint {
+    padding: 2px 8px 4px;
 }
 .btn-tool__label {
     font-size: 12px;

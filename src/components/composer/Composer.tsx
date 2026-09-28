@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Attachment } from '../../types/attachment';
 import {
   addAttachments,
@@ -7,10 +7,12 @@ import {
   useComposerState
 } from '../../stores/composerStore';
 import {
+  closeComposerTools,
   closeTools,
   openSettings,
   openTts,
   showToast,
+  toggleComposerTools,
   toggleTools,
   useUiState
 } from '../../stores/uiStore';
@@ -181,32 +183,26 @@ function FilePreviewStrip({ attachments }: { attachments: Attachment[] }): JSX.E
 /** The composer: draft textarea, attachment strip, tool toggles, send/stop. */
 export function Composer(): JSX.Element {
   const { draft, attachments } = useComposerState();
-  const { composerFocusTick, toolsOpen } = useUiState();
+  const { composerFocusTick, toolsOpen, composerTools } = useUiState();
   const { settings } = useSettingsState();
   const { active: streaming } = useStreamState();
   const { enabled } = useToolsState();
   const { wanted: canvasWanted } = useCanvasState();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  // Tool buttons are collapsed behind a "+" button; the choice is remembered.
-  const [toolsVisible, setToolsVisible] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('or_toolbar_open') === '1';
-    } catch {
-      return false;
-    }
-  });
 
-  const toggleToolbar = (): void => {
-    const next = !toolsVisible;
-    setToolsVisible(next);
-    try {
-      localStorage.setItem('or_toolbar_open', next ? '1' : '0');
-    } catch {
-      /* private mode */
-    }
-    if (!next && toolsOpen) closeTools();
-  };
+  // The vertical tools menu closes on outside clicks (the "+" button and the
+  // menu itself are exempt).
+  useEffect(() => {
+    if (!composerTools) return;
+    const onDocClick = (e: MouseEvent): void => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('#tools-menu, #btn-add-tools')) return;
+      closeComposerTools();
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [composerTools]);
 
   const enabledToolDefs = useMemo(
     () => TOOL_DEFS.filter((t) => enabled[t.id]),
@@ -262,98 +258,110 @@ export function Composer(): JSX.Element {
           <button
             type="button"
             id="btn-add-tools"
-            className={`btn-tool btn-tool--plus${toolsVisible ? ' btn-tool--active' : ''}`}
-            title={toolsVisible ? 'Hide tools' : 'Show tools'}
-            aria-expanded={toolsVisible}
-            onClick={toggleToolbar}
+            className={`btn-tool btn-tool--plus${composerTools ? ' btn-tool--active' : ''}`}
+            title={composerTools ? 'Hide tools' : 'Show tools'}
+            aria-expanded={composerTools}
+            onClick={() => {
+              if (!composerTools && toolsOpen) closeTools();
+              toggleComposerTools();
+            }}
           >
             {PLUS_ICON}
-            {!toolsVisible && (toolCount > 0 || settings.thinkingEnabled || canvasWanted) && (
+            {!composerTools && (toolCount > 0 || settings.thinkingEnabled || canvasWanted) && (
               <span className="btn-tool__dot" />
             )}
           </button>
-          {toolsVisible && (
-            <>
-          <button
-            type="button"
-            id="btn-attach-file"
-            className="btn-tool"
-            title="Attach Image or PDF"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {ATTACH_ICON}
-          </button>
-          <input
-            ref={fileInputRef}
-            id="file-input"
-            type="file"
-            accept="*/*"
-            multiple
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
-              if (files.length > 0) void handleFiles(files);
-              e.target.value = '';
-            }}
-          />
-          <button
-            type="button"
-            id="btn-tools"
-            className={`btn-tool${toolCount > 0 ? ' btn-tool--active btn-tool--has-tools' : ''}`}
-            title={toolsTitle}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleTools();
-            }}
-          >
-            {TOOLS_ICON}
-            <span className="btn-tool__label">Tools</span>
-            <span className="btn-tool__count" style={{ display: toolCount ? '' : 'none' }}>
-              {toolCount ? String(toolCount) : ''}
-            </span>
-          </button>
-          <button
-            type="button"
-            id="btn-thinking-toggle"
-            className={`btn-tool${settings.thinkingEnabled ? ' btn-tool--active' : ''}`}
-            title={settings.thinkingEnabled ? 'Thinking ON — click to disable' : 'Thinking OFF — click to enable'}
-            onClick={() => setThinkingEnabled(!settings.thinkingEnabled)}
-          >
-            {THINK_ICON}
-            <span className="btn-tool__label">Think</span>
-          </button>
-          <button
-            type="button"
-            id="btn-system-prompt"
-            className="btn-tool"
-            title="System Prompt"
-            onClick={openSettings}
-          >
-            {SYSTEM_PROMPT_ICON}
-          </button>
-          <button
-            type="button"
-            id="btn-canvas-toggle"
-            className={`btn-tool${canvasWanted ? ' btn-tool--active' : ''}`}
-            title="Canvas - get a reply in an editable document"
-            onClick={() => setCanvasWanted(!canvasWanted)}
-          >
-            {CANVAS_ICON}
-            <span className="btn-tool__label">Canvas</span>
-          </button>
-          <button
-            type="button"
-            id="btn-tts"
-            className="btn-tool"
-            title="Text to speech — turn text into an MP3 voice"
-            onClick={() => openTts(draft)}
-          >
-            {SPEAK_ICON}
-            <span className="btn-tool__label">Speak</span>
-          </button>
-          <div className="divider-vertical" />
-          <span className="shortcut-hint">Shift+Enter for newline</span>
-            </>
+          {composerTools && (
+            <div className="tools-menu" id="tools-menu" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                id="btn-attach-file"
+                className="btn-tool"
+                title="Attach Image or PDF"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {ATTACH_ICON}
+                <span className="btn-tool__label">Attach</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                id="file-input"
+                type="file"
+                accept="*/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length > 0) void handleFiles(files);
+                  e.target.value = '';
+                }}
+              />
+              <button
+                type="button"
+                id="btn-tools"
+                className={`btn-tool${toolCount > 0 ? ' btn-tool--active btn-tool--has-tools' : ''}`}
+                title={toolsTitle}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeComposerTools();
+                  toggleTools();
+                }}
+              >
+                {TOOLS_ICON}
+                <span className="btn-tool__label">Tools</span>
+                <span className="btn-tool__count" style={{ display: toolCount ? '' : 'none' }}>
+                  {toolCount ? String(toolCount) : ''}
+                </span>
+              </button>
+              <button
+                type="button"
+                id="btn-thinking-toggle"
+                className={`btn-tool${settings.thinkingEnabled ? ' btn-tool--active' : ''}`}
+                title={settings.thinkingEnabled ? 'Thinking ON — click to disable' : 'Thinking OFF — click to enable'}
+                onClick={() => setThinkingEnabled(!settings.thinkingEnabled)}
+              >
+                {THINK_ICON}
+                <span className="btn-tool__label">Think</span>
+              </button>
+              <button
+                type="button"
+                id="btn-system-prompt"
+                className="btn-tool"
+                title="System Prompt"
+                onClick={() => {
+                  closeComposerTools();
+                  openSettings();
+                }}
+              >
+                {SYSTEM_PROMPT_ICON}
+                <span className="btn-tool__label">System</span>
+              </button>
+              <button
+                type="button"
+                id="btn-canvas-toggle"
+                className={`btn-tool${canvasWanted ? ' btn-tool--active' : ''}`}
+                title="Canvas - get a reply in an editable document"
+                onClick={() => setCanvasWanted(!canvasWanted)}
+              >
+                {CANVAS_ICON}
+                <span className="btn-tool__label">Canvas</span>
+              </button>
+              <button
+                type="button"
+                id="btn-tts"
+                className="btn-tool"
+                title="Text to speech — turn text into an MP3 voice"
+                onClick={() => {
+                  closeComposerTools();
+                  openTts(draft);
+                }}
+              >
+                {SPEAK_ICON}
+                <span className="btn-tool__label">Speak</span>
+              </button>
+              <div className="divider-horizontal" />
+              <span className="shortcut-hint">Shift+Enter for newline</span>
+            </div>
           )}
         </div>
         <button

@@ -35,13 +35,9 @@ async function run() {
   log('sidebar rendered', !!q('.sidebar'));
   log('empty state rendered', doc().body.innerHTML.includes('How can I help you today'));
 
-  // composer toolbar collapsed behind "+" — expand it
-  const addBtn = q('#btn-add-tools');
-  log('add (+) button present', !!addBtn);
+  // composer toolbar collapsed behind "+"
+  log('add (+) button present', !!q('#btn-add-tools'));
   log('tools hidden while collapsed', !q('#btn-tools'));
-  click(addBtn);
-  await sleep(100);
-  log('clicking + reveals tools', !!q('#btn-tools') && !!q('#btn-thinking-toggle'));
 
   // settings modal
   click(q('#btn-settings-open'));
@@ -58,6 +54,13 @@ async function run() {
   esc();
   await sleep(100);
   log('model picker closes on Escape', !visible('#modal-models'));
+
+  // composer toolbar: "+" reveals the vertical tools menu
+  click(q('#btn-add-tools'));
+  await sleep(100);
+  log('clicking + reveals tools', !!q('#btn-tools') && !!q('#btn-thinking-toggle'));
+  const menuEl = q('#tools-menu');
+  log('tools shown vertically', !!menuEl && getComputedStyle(menuEl).flexDirection === 'column');
 
   // canvas toggle
   const appCls = () => q('#app').className;
@@ -108,6 +111,8 @@ async function run() {
   click(q('#btn-new-chat'));
   await sleep(100);
   log('new chat works', !!q('#chat-input'));
+  click(q('#btn-add-tools'));
+  await sleep(100);
   const thinkBtn = q('#btn-thinking-toggle');
   const before = thinkBtn.className.includes('btn-tool--active');
   click(thinkBtn);

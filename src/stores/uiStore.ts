@@ -30,6 +30,8 @@ export interface UiState {
   ttsSeq: number;
   /** Tools popover above the composer. */
   toolsOpen: boolean;
+  /** Vertical tools menu revealed by the composer's "+" button. */
+  composerTools: boolean;
   /** Visible side panel: artifact files, the Canvas, or neither. */
   sidePanel: SidePanelKind;
   toasts: ToastItem[];
@@ -46,6 +48,7 @@ export const uiStore = createStore<UiState>({
   ttsModelId: null,
   ttsSeq: 0,
   toolsOpen: false,
+  composerTools: false,
   sidePanel: null,
   toasts: [],
   composerFocusTick: 0
@@ -75,6 +78,11 @@ export const openTools = (): void => uiStore.set({ toolsOpen: true });
 export const closeTools = (): void => uiStore.set({ toolsOpen: false });
 export const toggleTools = (): void => uiStore.set((s) => ({ toolsOpen: !s.toolsOpen }));
 
+export const openComposerTools = (): void => uiStore.set({ composerTools: true });
+export const closeComposerTools = (): void => uiStore.set({ composerTools: false });
+export const toggleComposerTools = (): void =>
+  uiStore.set((s) => ({ composerTools: !s.composerTools }));
+
 /* ── Side panels (artifact / canvas) ─────────────────────────────────── */
 
 export const setSidePanel = (next: SidePanelKind): void => uiStore.set({ sidePanel: next });
@@ -85,7 +93,8 @@ export const closeAllOverlays = (): void =>
     settingsOpen: false,
     modelsOpen: false,
     ttsOpen: false,
-    toolsOpen: false
+    toolsOpen: false,
+    composerTools: false
   });
 
 /* ── Toasts ──────────────────────────────────────────────────────────── */
