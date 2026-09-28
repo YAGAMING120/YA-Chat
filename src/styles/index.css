@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@import "./tokens.css";
+@import "./chat.css";
+@import "./global.css";
+
+/*
+ * Tailwind utilities mapped onto the existing design tokens so classes like
+ * `bg-surface` / `text-main` follow the active [data-theme] automatically.
+ * `inline` keeps the literal var() reference in the generated CSS.
+ */
+@theme inline {
+  --color-app: var(--bg-app);
+  --color-sidebar: var(--bg-sidebar);
+  --color-sidebar-hover: var(--bg-sidebar-hover);
+  --color-surface: var(--bg-surface);
+  --color-surface-hover: var(--bg-surface-hover);
+  --color-input: var(--bg-input);
+  --color-ai-bubble: var(--bg-ai-bubble);
+  --color-user-bubble: var(--bg-user-bubble);
+  --color-primary: var(--bg-button-primary);
+  --color-primary-hover: var(--bg-button-primary-hover);
+  --color-danger: var(--bg-danger);
+  --color-danger-hover: var(--bg-danger-hover);
+  --color-line: var(--border-subtle);
+  --color-line-strong: var(--border-medium);
+  --color-focus: var(--border-focus);
+  --color-main: var(--text-main);
+  --color-muted: var(--text-muted);
+  --color-dim: var(--text-dim);
+  --color-brand: var(--text-primary);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}

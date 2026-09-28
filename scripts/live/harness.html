@@ -1,0 +1,124 @@
+﻿<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Phase 12 harness</title></head>
+<body>
+<iframe id="app" src="__APP__" style="width:1200px;height:800px"></iframe>
+<pre id="results">running...</pre>
+<script>
+const results = [];
+const log = (name, ok, extra) => { results.push((ok ? 'ok   ' : 'FAIL ') + name + (extra ? ' [' + extra + ']' : '')); };
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const doc = () => document.getElementById('app').contentDocument;
+const win = () => document.getElementById('app').contentWindow;
+const q = (sel) => doc().querySelector(sel);
+const visible = (sel) => { const el = q(sel); if (!el) return false; const w = el.ownerDocument.defaultView; return w.getComputedStyle(el).display !== 'none' && w.getComputedStyle(el).visibility !== 'hidden'; };
+const click = (el) => { if (!el) return false; el.dispatchEvent(new el.ownerDocument.defaultView.MouseEvent('click', { bubbles: true, cancelable: true })); return true; };
+const esc = () => doc().dispatchEvent(new (win().KeyboardEvent)('keydown', { key: 'Escape', bubbles: true }));
+const setInput = (el, value) => {
+  const proto = el.tagName === 'TEXTAREA' ? win().HTMLTextAreaElement.prototype : win().HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
+  el.dispatchEvent(new (win().Event)('input', { bubbles: true }));
+};
+
+async function run() {
+  const frame = document.getElementById('app');
+  await new Promise((res) => {
+    if (frame.contentDocument && frame.contentDocument.readyState === 'complete') res();
+    else frame.addEventListener('load', res);
+  });
+  frame.contentWindow.addEventListener('error', (e) => log('iframe script error', false, e.message));
+  frame.contentWindow.addEventListener('unhandledrejection', (e) => log('iframe rejection', false, String(e.reason)));
+  // wait for JS boot: empty state is rendered by the app, not static markup
+  for (let i = 0; i < 100 && !q('#chat-messages .empty-state') && !q('.empty-state'); i++) await sleep(100);
+  log('app booted (#chat-input present)', !!q('#chat-input'));
+  log('#app container present', !!q('#app'));
+  log('sidebar rendered', !!q('.sidebar'));
+  log('empty state rendered', doc().body.innerHTML.includes('How can I help you today'));
+
+  // settings modal
+  click(q('#btn-settings-open'));
+  await sleep(150);
+  log('settings opens', visible('#modal-settings'));
+  esc();
+  await sleep(100);
+  log('settings closes on Escape', !visible('#modal-settings'));
+
+  // model picker
+  click(q('#btn-model-selector'));
+  await sleep(150);
+  log('model picker opens', visible('#modal-models'));
+  esc();
+  await sleep(100);
+  log('model picker closes on Escape', !visible('#modal-models'));
+
+  // canvas toggle
+  const appCls = () => q('#app').className;
+  click(q('#btn-canvas-toggle'));
+  await sleep(100);
+  log('canvas toggle adds app--canvas-open', appCls().includes('app--canvas-open'), appCls());
+  click(q('#btn-canvas-toggle'));
+  await sleep(100);
+  log('canvas toggle removes class', !appCls().includes('app--canvas-open'));
+
+  // tools popover
+  click(q('#btn-tools'));
+  await sleep(150);
+  const pop = visible('#tools-popover');
+  log('tools popover opens', pop);
+  esc();
+  await sleep(100);
+  const popAfter = visible('#tools-popover');
+  log('tools popover closes on Escape', !popAfter);
+
+  // new project modal + create
+  click(q('#btn-new-project'));
+  await sleep(150);
+  log('new project modal opens', !!q('#new-project-modal') && visible('#new-project-modal'));
+  const nameInput = q('#new-project-name');
+  if (nameInput) setInput(nameInput, 'Phase12 Probe');
+  const promptInput = q('#new-project-prompt');
+  if (promptInput) setInput(promptInput, 'probe prompt');
+  await sleep(50);
+  click(q('#btn-create-project'));
+  await sleep(200);
+  const item = q('.project-item');
+  log('project created + listed', !!item && doc().body.innerHTML.includes('Phase12 Probe'));
+  log('project filter active', !!q('.project-item--active'));
+
+  // inline confirm on project delete (open, then decline)
+  const delBtn = q('.project-item .btn-delete-project') || q('.btn-delete-project');
+  click(delBtn);
+  await sleep(150);
+  const confirmOpen = !!q('.inline-confirm') || !!q('#inline-confirm-popup');
+  log('inline confirm opens', confirmOpen);
+  const noBtn = q('.inline-confirm__no');
+  click(noBtn);
+  await sleep(100);
+  log('declining keeps the project', !!q('.project-item'));
+
+  // new chat button + thinking toggle
+  click(q('#btn-new-chat'));
+  await sleep(100);
+  log('new chat works', !!q('#chat-input'));
+  const thinkBtn = q('#btn-thinking-toggle');
+  const before = thinkBtn.className.includes('btn-tool--active');
+  click(thinkBtn);
+  await sleep(100);
+  const after = thinkBtn.className.includes('btn-tool--active');
+  log('thinking toggles', before !== after, before + '->' + after);
+
+  // session select closes nothing important + sidebar toggle
+  log('export button present', !!q('#btn-export-chat'));
+  log('send button present', !!q('#btn-send'));
+
+  document.getElementById('results').textContent = results.join('\n');
+  document.title = results.some(r => r.startsWith('FAIL')) ? 'HARNESS FAIL' : 'HARNESS PASS';
+}
+run().catch(e => {
+  results.push('ERROR ' + (e && e.message ? e.message : String(e)));
+  document.getElementById('results').textContent = results.join('\n');
+  document.title = 'HARNESS ERROR';
+});
+</script>
+</body>
+</html>

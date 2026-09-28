@@ -1,0 +1,74 @@
+/*
+ * Design tokens — ported verbatim from style/main.css so the React app keeps
+ * the exact YA Chat visual identity (dark/light via [data-theme]).
+ */
+:root {
+  --bg-app: #070604;
+  --bg-app-rgb: 7, 6, 4;
+  --bg-sidebar: #0e0b09;
+  --bg-sidebar-hover: #1c1612;
+  --bg-surface: #1a1512;
+  --bg-surface-hover: #241c17;
+  --bg-input: #110d0a;
+  --bg-ai-bubble: #1a1512;
+  --bg-user-bubble: rgba(249, 115, 22, 0.12);
+  --bg-button-primary: #f97316;
+  --bg-button-primary-hover: #ea580c;
+  --bg-danger: #ef4444;
+  --bg-danger-hover: #dc2626;
+
+  --gradient-primary: linear-gradient(135deg, #fb923c 0%, #f97316 55%, #ea580c 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #f97316 0%, #ea580c 55%, #c2410c 100%);
+  --gradient-soft: linear-gradient(160deg, rgba(249, 115, 22, 0.14), rgba(251, 191, 36, 0.05));
+
+  --border-subtle: #221b15;
+  --border-medium: #34291f;
+  --border-user-bubble: rgba(249, 115, 22, 0.25);
+  --border-focus: rgba(249, 115, 22, 0.55);
+
+  --text-main: #ece7e2;
+  --text-muted: #93897e;
+  --text-dim: #5c5249;
+  --text-dark: #332b24;
+  --text-primary: #fb923c;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow-lg: 0 10px 24px -6px rgba(0, 0, 0, 0.45), 0 4px 10px -4px rgba(0, 0, 0, 0.3);
+  --shadow-2xl: 0 25px 60px -12px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 22px rgba(249, 115, 22, 0.35);
+}
+
+[data-theme="light"] {
+  --bg-app: #fbf9f7;
+  --bg-app-rgb: 251, 249, 247;
+  --bg-sidebar: #f5f0ea;
+  --bg-sidebar-hover: #ece4da;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f7f1ea;
+  --bg-input: #ffffff;
+  --bg-ai-bubble: #ffffff;
+  --bg-user-bubble: rgba(234, 88, 12, 0.1);
+
+  --gradient-soft: linear-gradient(160deg, rgba(249, 115, 22, 0.10), rgba(251, 191, 36, 0.04));
+
+  --border-subtle: #ece4da;
+  --border-medium: #ddd0bf;
+  --border-user-bubble: rgba(234, 88, 12, 0.22);
+
+  --text-main: #1c1815;
+  --text-muted: #6b5f52;
+  --text-dim: #978a7b;
+  --text-dark: #d8cdbf;
+  --text-primary: #c2410c;
+
+  --shadow-sm: 0 1px 2px rgba(28, 24, 21, 0.06);
+  --shadow-lg: 0 10px 24px -6px rgba(28, 24, 21, 0.10), 0 4px 10px -4px rgba(28, 24, 21, 0.06);
+  --shadow-2xl: 0 25px 60px -12px rgba(28, 24, 21, 0.16);
+}

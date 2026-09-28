@@ -2,6 +2,8 @@
 
 A streaming chat UI for [OpenRouter](https://openrouter.ai) — hundreds of models behind one OpenAI-compatible API.
 
+Built with **React 18 + TypeScript + Vite + Tailwind**, deployable to Vercel.
+
 ## Features
 
 - Streaming responses (SSE) with live reasoning/thinking blocks
@@ -12,6 +14,8 @@ A streaming chat UI for [OpenRouter](https://openrouter.ai) — hundreds of mode
 - Artifact panel with live code preview
 - **Canvas**: the model can reply into an editable side panel — a rich-text document or a code file with preview. Toggle it from the composer, or let the model open it by emitting a `<canvas>` block. Canvas edits round-trip back to the model (`Ask AI to edit`), and the panel is persisted per session.
 
+All state lives in `localStorage` — no backend, no accounts.
+
 ## Setup
 
 1. Get an API key at [openrouter.ai/keys](https://openrouter.ai/keys)
@@ -20,29 +24,51 @@ A streaming chat UI for [OpenRouter](https://openrouter.ai) — hundreds of mode
 
 ## Run locally
 
-The `/api/proxy` route is a Vercel serverless function, so run the project with the Vercel CLI:
+```
+npm install
+```
+
+**Full stack** (UI + `/api/proxy` serverless function) — run the project with the Vercel CLI:
 
 ```
 npm i -g vercel
 vercel dev
 ```
 
+**UI only** — Vite dev server (proxies `/api/proxy` to `localhost:3000`, so it needs the
+Vercel function running for API calls):
+
+```
+npm run dev
+```
+
 ## Deploy
 
-Push to a Git repo and import it into Vercel, or run `vercel`. No environment variables are required — see [.env.example](.env.example).
+Push to a Git repo and import it into Vercel, or run `vercel`. The build is `npm run build` → `dist/` (configured in [vercel.json](vercel.json)). No environment variables are required — see [.env.example](.env.example).
+
+## Tests
+
+```
+npm run typecheck   # tsc --noEmit
+npm test            # smoke suites + render parity (against scripts/fixtures/)
+npm run test:live   # boots the app in headless Edge and drives real interactions
+npm run build       # production build into dist/
+```
 
 ## Architecture
 
 | Path | Purpose |
 | --- | --- |
-| `index.html` | App shell |
-| `js/` | UI, chat, storage, model list, API client |
-| `js/canvas.js` | Canvas panel: document/code editors, `<canvas>` protocol, AI-edit commands |
-| `js/tts.js` | Text-to-speech modal: model/voice picking, `POST /audio/speech`, MP3 download |
-| `js/capabilities.js` | Modality lookup shared by the picker, composer and TTS (chat vs speech vs embeddings) |
-| `js/tools.js` | Server tools: toggles, `tools` payload builder, popover UI |
+| `index.html` | React entry (`src/main.tsx`) |
+| `src/components/` | UI: layout, sidebar, composer, chat, settings, models, TTS, artifact/canvas panels |
+| `src/stores/` | App state (`chatStore`, `uiStore`, `canvasStore`, `artifactStore`, …) on `useSyncExternalStore` |
+| `src/services/openrouter/` | API client: chat (SSE streaming), models, speech |
+| `src/services/storage/` | `localStorage` persistence (sessions, projects, settings, model cache, tools) |
+| `src/lib/markdown/` | Markdown renderer: marked + highlight.js + KaTeX + DOMPurify, `<canvas>` extraction |
+| `src/lib/canvas/`, `src/lib/artifacts/` | Canvas `<canvas>` protocol helpers, artifact HTML preview |
+| `src/styles/` | Tailwind v4 + app CSS (`global.css`, `chat.css`, `tokens.css`) |
 | `api/proxy.js` | Serverless proxy to `https://openrouter.ai/api/v1` (forwards query params, streams SSE, passes audio bytes through untouched) |
-| `style/` | Stylesheets |
+| `scripts/` | Test suites + live browser harness (fixtures in `scripts/fixtures/`) |
 
 ## Canvas protocol
 

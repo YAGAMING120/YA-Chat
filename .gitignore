@@ -1,8 +1,36 @@
+# Dependencies
 node_modules/
-build/
+
+# Build output
 dist/
+build/
 coverage/
-.DS_Store
-*.log
-.env*
+*.tsbuildinfo
+
+# Vercel
+.vercel/
+
+# Secrets (keep the example)
+.env
+.env.*
 !.env.example
+
+# Test harness temp files
+.live-harness-*.html
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local overrides
+*.local
