@@ -777,6 +777,26 @@
 .btn-tool:active {
     transform: scale(0.95);
 }
+/* "+" toggle: rotates into a close mark while tools are shown */
+.btn-tool--plus {
+    position: relative;
+}
+.btn-tool--plus svg {
+    transition: transform 0.2s ease;
+}
+.btn-tool--plus.btn-tool--active svg {
+    transform: rotate(45deg);
+}
+.btn-tool__dot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f97316;
+    pointer-events: none;
+}
 .btn-tool__label {
     font-size: 12px;
     font-weight: 500;

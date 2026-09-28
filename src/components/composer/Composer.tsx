@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Attachment } from '../../types/attachment';
 import {
   addAttachments,
@@ -6,7 +6,14 @@ import {
   setDraft,
   useComposerState
 } from '../../stores/composerStore';
-import { openSettings, openTts, showToast, toggleTools, useUiState } from '../../stores/uiStore';
+import {
+  closeTools,
+  openSettings,
+  openTts,
+  showToast,
+  toggleTools,
+  useUiState
+} from '../../stores/uiStore';
 import { setThinkingEnabled, useSettingsState } from '../../stores/settingsStore';
 import { useStreamState } from '../../stores/streamStore';
 import { useToolsState } from '../../stores/toolsStore';
@@ -115,6 +122,19 @@ const SPEAK_ICON = (
   </svg>
 );
 
+const PLUS_ICON = (
+  <svg
+    className="icon"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+  >
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
 const SEND_ICON = (
   <svg
     className="icon"
@@ -168,6 +188,25 @@ export function Composer(): JSX.Element {
   const { wanted: canvasWanted } = useCanvasState();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Tool buttons are collapsed behind a "+" button; the choice is remembered.
+  const [toolsVisible, setToolsVisible] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('or_toolbar_open') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleToolbar = (): void => {
+    const next = !toolsVisible;
+    setToolsVisible(next);
+    try {
+      localStorage.setItem('or_toolbar_open', next ? '1' : '0');
+    } catch {
+      /* private mode */
+    }
+    if (!next && toolsOpen) closeTools();
+  };
 
   const enabledToolDefs = useMemo(
     () => TOOL_DEFS.filter((t) => enabled[t.id]),
@@ -220,6 +259,21 @@ export function Composer(): JSX.Element {
           }}
         />
         <div className="input-tools">
+          <button
+            type="button"
+            id="btn-add-tools"
+            className={`btn-tool btn-tool--plus${toolsVisible ? ' btn-tool--active' : ''}`}
+            title={toolsVisible ? 'Hide tools' : 'Show tools'}
+            aria-expanded={toolsVisible}
+            onClick={toggleToolbar}
+          >
+            {PLUS_ICON}
+            {!toolsVisible && (toolCount > 0 || settings.thinkingEnabled || canvasWanted) && (
+              <span className="btn-tool__dot" />
+            )}
+          </button>
+          {toolsVisible && (
+            <>
           <button
             type="button"
             id="btn-attach-file"
@@ -299,6 +353,8 @@ export function Composer(): JSX.Element {
           </button>
           <div className="divider-vertical" />
           <span className="shortcut-hint">Shift+Enter for newline</span>
+            </>
+          )}
         </div>
         <button
           type="button"

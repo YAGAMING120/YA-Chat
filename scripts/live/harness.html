@@ -35,6 +35,14 @@ async function run() {
   log('sidebar rendered', !!q('.sidebar'));
   log('empty state rendered', doc().body.innerHTML.includes('How can I help you today'));
 
+  // composer toolbar collapsed behind "+" — expand it
+  const addBtn = q('#btn-add-tools');
+  log('add (+) button present', !!addBtn);
+  log('tools hidden while collapsed', !q('#btn-tools'));
+  click(addBtn);
+  await sleep(100);
+  log('clicking + reveals tools', !!q('#btn-tools') && !!q('#btn-thinking-toggle'));
+
   // settings modal
   click(q('#btn-settings-open'));
   await sleep(150);
@@ -110,6 +118,14 @@ async function run() {
   // session select closes nothing important + sidebar toggle
   log('export button present', !!q('#btn-export-chat'));
   log('send button present', !!q('#btn-send'));
+
+  // "+" collapses and re-expands the toolbar
+  click(q('#btn-add-tools'));
+  await sleep(100);
+  log('clicking + hides tools', !q('#btn-tools'));
+  click(q('#btn-add-tools'));
+  await sleep(100);
+  log('clicking + again shows tools', !!q('#btn-tools'));
 
   document.getElementById('results').textContent = results.join('\n');
   document.title = results.some(r => r.startsWith('FAIL')) ? 'HARNESS FAIL' : 'HARNESS PASS';
